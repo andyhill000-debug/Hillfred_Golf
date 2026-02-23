@@ -1853,27 +1853,7 @@ function renderTournamentActions(key) {
   // removed — legacy dead code
 }
 
-function deleteTournament(key) {
-  const t = TOURNAMENT[key];
-  if (!t) return;
-  const el = document.getElementById('tournament-actions');
-  el.innerHTML = `
-    <div style="padding:10px 12px;background:#1a0a0a;border:1.5px solid #3a1a1a;border-radius:9px;font-size:12px">
-      <div style="color:var(--red);font-weight:700;margin-bottom:4px">Delete "${t.label}"?</div>
-      <div style="color:#bbb;font-size:11px;margin-bottom:10px">This cannot be undone.</div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" style="flex:1;font-size:12px;color:var(--red);border-color:#3a1a1a;min-height:40px" onclick="confirmDeleteTournament('${key}')">✓ Delete</button>
-        <button class="btn btn-ghost" style="flex:1;font-size:12px;min-height:40px" onclick="renderTournamentActions('${key}')">✕ Cancel</button>
-      </div>
-    </div>`;
-}
-
-function confirmDeleteTournament(key) {
-  delete TOURNAMENT[key];
-  persistTournaments();
-  onTournamentSelect('');
-  renderTournamentDropdown();
-}
+// deleteTournament defined above (line ~1605)
 
 function showClearTournamentsConfirm() {
   // removed — legacy dead code
