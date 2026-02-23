@@ -144,9 +144,9 @@ select.t-select{width:100%;background:var(--card);border:1.5px solid var(--borde
 .ind-player.p2-side{text-align:right;align-items:flex-end;}
 .ind-player-name{font-weight:700;font-size:15px;line-height:1.2;}
 .ind-player-sub{font-size:10px;color:#444;font-weight:600;}
-.imc-p1 .ind-player.p1-side .ind-player-name{color:var(--teal);}
-.imc-p2 .ind-player.p2-side .ind-player-name{color:var(--red);}
-.imc-done .ind-player-name{color:var(--gold);}
+/* p1 always teal, p2 always red — regardless of who leads */
+.ind-player.p1-side .ind-player-name{color:var(--teal);}
+.ind-player.p2-side .ind-player-name{color:var(--red);}
 .ind-match-centre{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:84px;}
 .ind-result-badge{font-family:'Playfair Display',serif;font-size:17px;font-weight:900;padding:5px 14px;border-radius:20px;white-space:nowrap;line-height:1.2;text-align:center;}
 .ind-match-footer{height:3px;background:#161616;overflow:hidden;}
