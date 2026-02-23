@@ -3620,7 +3620,8 @@ function renderBanner(results, rawResults){
     }
 
   } else if(game.mode==='stableford' && !game.skins){
-    let t1=0,t2=0,t3=0,t4=0;
+    // For 4BBB: best ball = highest stableford points from either partner per hole
+    let t1=0,t2=0,t3=0,t4=0,bb1=0,bb2=0;
     game.holes.forEach(h=>{
       const c1=stablefordCalc(h.p1,h.par,p1.hcp,gsi1(h),gsi2(h),gsi3(h));
       const c2=stablefordCalc(h.p2,h.par,p2.hcp,gsi1(h),gsi2(h),gsi3(h));
@@ -3629,6 +3630,14 @@ function renderBanner(results, rawResults){
         const c3=stablefordCalc(h.p3,h.par,p3.hcp,gsi1(h),gsi2(h),gsi3(h));
         const c4=stablefordCalc(h.p4,h.par,p4.hcp,gsi1(h),gsi2(h),gsi3(h));
         if(c3)t3+=c3.points; if(c4)t4+=c4.points;
+        // 4BBB team score = best (highest) stableford points of either partner
+        if(game.team){
+          const best1 = Math.max(c1?c1.points:0, c3?c3.points:0);
+          const best2 = Math.max(c2?c2.points:0, c4?c4.points:0);
+          // Only add if at least one partner has scored this hole
+          if(h.p1!=null||h.p3!=null) bb1+=best1;
+          if(h.p2!=null||h.p4!=null) bb2+=best2;
+        }
       }
     });
     const _colors4=['var(--teal)','var(--red)','var(--gold)','#a78bfa'];
@@ -3643,19 +3652,21 @@ function renderBanner(results, rawResults){
           </div>`).join('<div class="stroke-vs" style="font-size:11px;color:#333">·</div>')}
         </div>`;
     } else {
-      el.innerHTML=`${cnHtml}<div class="score-banner-title">STABLEFORD</div>
+      const t1n = game.team?(game.tournament&&game.tournament.team1name||'Team 1'):p1.name;
+      const t2n = game.team?(game.tournament&&game.tournament.team2name||'Team 2'):p2.name;
+      el.innerHTML=`${cnHtml}<div class="score-banner-title">STABLEFORD${game.team?' · 4BBB BEST BALL':''}</div>
         <div class="stroke-scores">
           <div class="stroke-player">
-            <div class="stroke-name" style="color:var(--teal)">${game.team?(game.tournament&&game.tournament.team1name||'Team 1'):p1.name}</div>
-            <div class="stroke-total" style="color:var(--teal)">${game.team?t1+t3:t1}</div>
-            ${game.team?`<div class="stroke-sub">${p1.name}: ${t1} · ${p3.name}: ${t3}</div>`:''}
+            <div class="stroke-name" style="color:var(--teal)">${t1n}</div>
+            <div class="stroke-total" style="color:var(--teal)">${game.team?bb1:t1}</div>
+            ${game.team?`<div class="stroke-sub" style="font-size:10px">${p1.name}: ${t1} · ${p3.name}: ${t3}</div>`:''}
             <div class="stroke-sub">points</div>
           </div>
           <div class="stroke-vs">vs</div>
           <div class="stroke-player">
-            <div class="stroke-name" style="color:var(--red)">${game.team?(game.tournament&&game.tournament.team2name||'Team 2'):p2.name}</div>
-            <div class="stroke-total" style="color:var(--red)">${game.team?t2+t4:t2}</div>
-            ${game.team?`<div class="stroke-sub">${p2.name}: ${t2} · ${p4.name}: ${t4}</div>`:''}
+            <div class="stroke-name" style="color:var(--red)">${t2n}</div>
+            <div class="stroke-total" style="color:var(--red)">${game.team?bb2:t2}</div>
+            ${game.team?`<div class="stroke-sub" style="font-size:10px">${p2.name}: ${t2} · ${p4.name}: ${t4}</div>`:''}
             <div class="stroke-sub">points</div>
           </div>
         </div>`;
@@ -4215,7 +4226,11 @@ function renderScorecard(results, rawResults){
       if(_skActive){
         const _skGrossArr=[nGross.p1,nGross.p2,nGross.p3||0,nGross.p4||0];
         sumParts+=` · `+game.skinsPlayers.map((p,i)=>`${p.name.split(' ')[0]}: ${_skGrossArr[i]||'—'}`).join(' | ');
-      } else if(isStab) sumParts+=` · ${p1s}: ${nPts.p1}pt${(team||_fp)?` · ${p3s}: ${nPts.p3}pt`:''} | ${p2s}: ${nPts.p2}pt${(team||_fp)?` · ${p4s}: ${nPts.p4}pt`:''}`;
+      } else if(isStab){
+        if(team) sumParts+=` · ${p1s}: ${nPts.p1}pt · ${p3s}: ${nPts.p3}pt | ${p2s}: ${nPts.p2}pt · ${p4s}: ${nPts.p4}pt`;
+        else if(_fp) sumParts+=` · ${p1s}: ${nPts.p1}pt | ${p2s}: ${nPts.p2}pt | ${p3s}: ${nPts.p3}pt | ${p4s}: ${nPts.p4}pt`;
+        else sumParts+=` · ${p1s}: ${nPts.p1}pt | ${p2s}: ${nPts.p2}pt`;
+      }
       else sumParts+=` · ${p1s}: ${nGross.p1||'—'}${(team||_fp)?` · ${p3s}: ${nGross.p3||'—'}`:''} | ${p2s}: ${nGross.p2||'—'}${(team||_fp)?` · ${p4s}: ${nGross.p4||'—'}`:''}`;
       const _activeCols=_fp?_pc4:team?4:2;
       const cols=_skActive?(3+game.skinsPlayers.length+1):(3+_activeCols+(isMatch?1:0)+(isStab?(_fp||team?_activeCols:2):(_fp?_activeCols:2)));
