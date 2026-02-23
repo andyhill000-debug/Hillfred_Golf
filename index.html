@@ -2509,16 +2509,11 @@ function _syncHoleToFirebase(holeNum) {
     ...(pc >= 4 ? [{ name: p4.name, hcp: p4.hcp, field: 'p4', teamSlot: 0 }] : []),
   ];
 
-  // Pre-compute matchplay status once (same for all players in this game)
-  let mpStatus = null, mpLeading = 0;
+  // Pre-compute matchplay status from p1's perspective
+  let _mpSt = null;
   if (isMatch) {
     const results = getHoleResults();
-    const st = matchStatus(results);
-    if (st) {
-      mpStatus  = st.label;
-      // leading: 1 = p1-side (Team1) ahead, 2 = p2-side (Team2) ahead, 0 = AS/closed
-      mpLeading = st.closed ? (st.winner || 0) : (st.leading || 0);
-    }
+    _mpSt = matchStatus(results);
   }
 
   // Compute running totals per player across all completed holes
@@ -2539,6 +2534,29 @@ function _syncHoleToFirebase(holeNum) {
     const t1n = game.tournament.team1name || 'Team 1';
     const t2n = game.tournament.team2name || 'Team 2';
 
+    // Derive per-player matchplay status:
+    // p1-side (teamSlot 1) sees "1 UP" when ahead — p2-side sees "1 DOWN"
+    let pMpStatus = null, pMpLeading = 0;
+    if (_mpSt) {
+      const isP1Side = p.teamSlot === 1;
+      const rawLeading = _mpSt.closed ? (_mpSt.winner || 0) : (_mpSt.leading || 0);
+      if (_mpSt.label === 'All Square' || _mpSt.label === 'All Square — Halved') {
+        pMpStatus  = 'All Square';
+        pMpLeading = 0;
+      } else if (_mpSt.closed) {
+        // Finished — show "W" or "L" + the score label
+        const won = rawLeading === (isP1Side ? 1 : 2);
+        pMpStatus  = won ? `W ${_mpSt.label}` : `L ${_mpSt.label}`;
+        pMpLeading = rawLeading;
+      } else {
+        // Live — leading player sees "X UP", trailing sees "X DOWN"
+        const leading = rawLeading === (isP1Side ? 1 : 2); // this player is ahead
+        const upNum   = _mpSt.label.replace(' UP','').trim();
+        pMpStatus  = leading ? `${upNum} UP` : `${upNum} DOWN`;
+        pMpLeading = rawLeading;
+      }
+    }
+
     window._fbSyncHole(tKey, gameId, p.name, holeNum, {
       grossTotal,
       netTotal,
@@ -2547,15 +2565,12 @@ function _syncHoleToFirebase(holeNum) {
       par: game.holes.slice(0, holesPlayed).reduce((a, hh) => a + hh.par, 0),
       mode: game.mode,
       team: team || false,
-      // For 4BBB: p1+p3 = Team1, p2+p4 = Team2 (matches game engine pairing)
-      teamName: team
-        ? (p.teamSlot === 1 ? t1n : t2n)
-        : null,
+      teamName: team ? (p.teamSlot === 1 ? t1n : t2n) : null,
       t1name: team ? t1n : null,
       t2name: team ? t2n : null,
-      gameId,   // include gameId in hole data so leaderboard can group correctly
-      mpStatus,
-      mpLeading  // 1=Team1(p1-side) leading, 2=Team2(p2-side) leading, 0=AS
+      gameId,
+      mpStatus:  pMpStatus,
+      mpLeading: pMpLeading
     });
   });
 }

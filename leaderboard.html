@@ -700,7 +700,11 @@ function showBannerIndividual(entries) {
       scoreVal = e.stabTotal; scoreLabel = 'PTS'; scoreCol = 'col-teal';
     } else if (e.mode === 'matchplay') {
       scoreVal = e.mpStatus || (e.holesPlayed===0?'AS':'—');
-      scoreLabel = 'MATCH'; scoreCol = e.mpStatus&&e.mpStatus.includes('UP')?'col-teal':'col-grey';
+      scoreLabel = 'MATCH';
+      scoreCol = !e.mpStatus ? 'col-grey'
+        : e.mpStatus.includes('DOWN') || e.mpStatus.startsWith('L ') ? 'col-red'
+        : e.mpStatus.includes('UP')   || e.mpStatus.startsWith('W ') ? 'col-teal'
+        : 'col-grey';
     } else {
       const diff = e.netTotal - e.par;
       scoreVal  = diff === 0 ? 'E' : (diff > 0 ? '+' : '') + diff;
@@ -968,7 +972,9 @@ function renderLive(modeFilter) {
       sh = `<div class="score-big col-teal">${e.stabTotal}</div><div class="score-lbl">PTS</div>`;
     } else if (e.mode==='matchplay') {
       const st=e.mpStatus||(e.holesPlayed===0?'AS':'—');
-      const sc=st.includes('UP')?'col-teal':st==='AS'?'col-grey':'col-red';
+      const sc = st.includes('DOWN') || st.startsWith('L ') ? 'col-red'
+               : st.includes('UP')   || st.startsWith('W ') ? 'col-teal'
+               : 'col-grey';
       sh = `<div class="score-big ${sc}">${st}</div>`;
     } else {
       const d=e.netTotal-e.par;
