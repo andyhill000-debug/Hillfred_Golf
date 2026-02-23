@@ -611,6 +611,13 @@
         <div style="font-size:9px;color:#666;margin-top:1px">Best Ball</div>
       </div>
     </div>
+    <!-- Contextual note — shown only when Singles + Matchplay + 3-4 players -->
+    <div id="teams-singles-note" style="display:none;margin-top:10px;padding:12px 14px;background:rgba(0,232,187,.05);border:1px solid rgba(0,232,187,.15);border-radius:12px;font-size:12px;color:#888;line-height:1.6">
+      <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--teal);margin-bottom:5px">⚡ MATCHPLAY SINGLES — 3-4 PLAYERS</div>
+      With 3 or 4 players, two concurrent 1v1 matches run from a single group — no tournament required.<br>
+      <span style="color:#666">Match 1 uses the top two players. Match 2 uses the bottom two. Start each match separately.</span><br><br>
+      <span style="color:rgba(0,232,187,.5);font-size:11px">ℹ️ Does not apply to 4BBB — 4BBB plays all four together as one match.</span>
+    </div>
   </div>
 
   <div class="card">
@@ -1425,6 +1432,8 @@ function showTab(name) {
 }
 function setMode(m) {
   gameMode=m;
+  // Refresh Singles note visibility when mode changes
+  _refreshSinglesNote();
   ['matchplay','stroke','stableford'].forEach(id=>document.getElementById('mode-'+id).classList.toggle('active',id===m));
   const prompt=document.getElementById('mode-choose-prompt');
   if(prompt) prompt.style.display='none';
@@ -1538,12 +1547,24 @@ function toggleFourPlayer() {
     if(_tl)_tl.style.color='#ccc';
   }
   _syncPlayerLabels();
+  // Colour p3/p4 cards correctly for non-tournament fourPlayer matchplay
+  const _p3cl = document.getElementById('p3-card-label');
+  const _p4cl = document.getElementById('p4-card-label');
+  if (_p3cl && !activeTournament) {
+    _p3cl.textContent = 'Player 3 — Match 2';
+    _p3cl.style.color = fourPlayer && gameMode === 'matchplay' ? 'var(--teal)' : '';
+  }
+  if (_p4cl && !activeTournament) {
+    _p4cl.textContent = 'Player 4 — Match 2';
+    _p4cl.style.color = fourPlayer && gameMode === 'matchplay' ? 'var(--red)' : '';
+  }
   if(!fourPlayer){
     document.getElementById('p3-ind-name').value='';
     document.getElementById('p4-ind-name').value='';
     document.getElementById('p3-ind-hcp').value='';
     document.getElementById('p4-ind-hcp').value='';
   }
+  _refreshSinglesNote();
   checkCanStart();
 }
 function toggleSkins() {
@@ -1558,6 +1579,14 @@ function toggleSkins() {
   if(_sl){_sl.style.color=skinsPlay?'var(--teal)':'#ccc';}
   checkCanStart();
 }
+function _refreshSinglesNote() {
+  const noteEl = document.getElementById('teams-singles-note');
+  if (!noteEl) return;
+  // Show when: 3-4 players mode on + matchplay selected + not 4BBB team format
+  const show = fourPlayer && gameMode === 'matchplay' && !teamPlay;
+  noteEl.style.display = show ? 'block' : 'none';
+}
+
 function checkCanStart() {
   const warn=document.getElementById('start-warn');
   const btn=document.getElementById('start-btn');
@@ -1689,20 +1718,8 @@ function setTeamsMatchFormat(fmt) {
   }
 
   // Show info note for teams singles with 4 players
-  let noteEl = document.getElementById('teams-singles-note');
-  if (!noteEl) {
-    noteEl = document.createElement('div');
-    noteEl.id = 'teams-singles-note';
-    noteEl.style.cssText = 'margin:8px 14px 0;padding:10px 14px;background:rgba(0,232,187,.06);border:1px solid rgba(0,232,187,.15);border-radius:10px;font-size:12px;color:#888;line-height:1.5;display:none';
-    const fmtRow = document.getElementById('match-fmt-row');
-    if(fmtRow) fmtRow.after(noteEl);
-  }
-  if (isTeamsSingles) {
-    noteEl.style.display = 'block';
-    noteEl.innerHTML = '⚡ <strong style="color:var(--teal)">Two singles matches</strong> — start each match separately. Match 1: top two players. Match 2: bottom two players.';
-  } else {
-    noteEl.style.display = 'none';
-  }
+  // Show note only when Singles + Matchplay mode is active
+  _refreshSinglesNote();
   checkCanStart();
   _syncMatchFmtTiles();   // keep match tab format tiles in sync
   renderMatchBanner();    // update match tab banner text
