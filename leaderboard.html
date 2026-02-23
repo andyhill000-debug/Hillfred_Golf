@@ -927,7 +927,7 @@ function renderTeamsLive(entries, main, allEntries) {
     const leadName = !done && m.resCls === 't1' ? ts.t1name : !done && m.resCls === 't2' ? ts.t2name : null;
     const leadHtml = leadName
       ? `<div class="match-leading" style="color:${m.resCls==='t1'?'var(--teal)':'var(--red)'}">${leadName} leads</div>`
-      : done ? `<div class="match-leading" style="color:var(--gold)">${m.resCls==='t1'?ts.t1name:m.resCls==='t2'?ts.t2name:'Halved'}</div>`
+      : done ? `<div class="match-leading" style="color:${m.resCls==='t1'?'var(--teal)':m.resCls==='t2'?'var(--red)':'var(--gold)'}">${m.resCls==='t1'?ts.t1name:m.resCls==='t2'?ts.t2name:'Halved'} wins</div>`
              : `<div class="match-leading" style="color:#444">All Square</div>`;
 
     // Player name HTML
@@ -942,7 +942,7 @@ function renderTeamsLive(entries, main, allEntries) {
 
     // Status dot
     const statusDot = done
-      ? `<span style="color:var(--gold);font-size:10px;font-weight:700">✓ FINAL</span>`
+      ? `<span style="color:${m.resCls==='t1'?'var(--teal)':m.resCls==='t2'?'var(--red)':'var(--gold)'};font-size:10px;font-weight:700">✓ FINAL</span>`
       : `<span style="color:var(--teal);font-size:10px;font-weight:700;animation:blink 1.8s ease infinite">● LIVE</span>`;
 
     return `
@@ -1065,16 +1065,20 @@ function renderLive(modeFilter) {
       const winnerName = done
         ? (p1leads ? p1e.name : p2leads ? p2e.name : 'Halved')
         : null;
+      const winnerCol = done
+        ? (p1leads ? 'var(--teal)' : p2leads ? 'var(--red)' : 'var(--gold)')
+        : null;
       const leadHtml = winnerName
-        ? `<div class="match-leading" style="color:var(--gold)">${winnerName}</div>`
+        ? `<div class="match-leading" style="color:${winnerCol}">${winnerName} wins</div>`
         : p1leads
           ? `<div class="match-leading" style="color:var(--teal)">${p1e.name} leads</div>`
           : p2leads
             ? `<div class="match-leading" style="color:var(--red)">${p2e.name} leads</div>`
             : `<div class="match-leading" style="color:#444">All Square</div>`;
 
+      const finalCol = p1leads ? 'var(--teal)' : p2leads ? 'var(--red)' : 'var(--gold)';
       const statusDot = done
-        ? `<span style="color:var(--gold);font-size:10px;font-weight:700">✓ FINAL</span>`
+        ? `<span style="color:${finalCol};font-size:10px;font-weight:700">✓ FINAL</span>`
         : `<span style="color:var(--teal);font-size:10px;font-weight:700;animation:blink 1.8s ease infinite">● LIVE</span>`;
 
       const mn = matchNum++;
