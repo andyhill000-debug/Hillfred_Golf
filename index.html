@@ -1358,129 +1358,68 @@ function setTeamsMatchFormat(fmt) {
 }
 
 function setTournamentType(type) {
-  _tFormType = type;
-  const sBox = document.getElementById('ttype-singles-box');
-  const tBox = document.getElementById('ttype-teams-box');
-  const sLbl = document.getElementById('ttype-singles-lbl');
-  const tLbl = document.getElementById('ttype-teams-lbl');
-  const sSub = sBox ? sBox.querySelector('div:last-child') : null;
-  const tSub = tBox ? tBox.querySelector('div:last-child') : null;
-  const isSingles = type === 'singles';
-  if(sBox){ sBox.style.background=isSingles?'rgba(0,232,187,.12)':'#141414'; sBox.style.borderColor=isSingles?'var(--teal)':'#2a2a2a'; }
-  if(tBox){ tBox.style.background=!isSingles?'rgba(0,232,187,.12)':'#141414'; tBox.style.borderColor=!isSingles?'var(--teal)':'#2a2a2a'; }
-  if(sLbl) sLbl.style.color = isSingles ? 'var(--teal)' : '#888';
-  if(tLbl) tLbl.style.color = !isSingles ? 'var(--teal)' : '#888';
-  if(sSub) sSub.style.color = isSingles ? 'var(--teal)' : '#666';
-  if(tSub) tSub.style.color = !isSingles ? 'var(--teal)' : '#666';
-  const sFields = document.getElementById('t-singles-fields');
-  const tFields = document.getElementById('t-teams-fields');
-  if(sFields) sFields.style.display = isSingles ? 'block' : 'none';
-  if(tFields) tFields.style.display = !isSingles ? 'block' : 'none';
+  // removed — legacy dead code
 }
 
 function onTournamentSelect(val) {
   activeTournament = val || null;
   const t = val ? TOURNAMENT[val] : null;
-  const badge = document.getElementById('tournament-badge');
-  badge.style.display = t ? 'block' : 'none';
-  if(t) badge.textContent = '🏆 ' + t.label.toUpperCase() + (t.type==='teams'?' · Teams':' · Singles');
 
-  // tournament actions now handled by Tournament tab
+  const _g = id => document.getElementById(id); // safe getter used below
 
   if (t) {
     if (t.type === 'teams') {
-      // Teams tournament: show match format picker, populate team dropdowns
-      document.getElementById('teams-match-format-wrap').style.display = 'block';
-      // Apply team colours to card labels and select labels
-      document.getElementById('t1-card-label').style.color = 'var(--teal)';
-      document.getElementById('t2-card-label').style.color = 'var(--red)';
-      const p1sl=document.getElementById('p1-select-label'), p2sl=document.getElementById('p2-select-label');
-      const p3sl=document.getElementById('p3-select-label'), p4sl=document.getElementById('p4-select-label');
-      if(p1sl) p1sl.style.color='var(--teal)';
-      if(p2sl) p2sl.style.color='var(--red)';
-      if(p3sl) p3sl.style.color='var(--teal)';
-      if(p4sl) p4sl.style.color='var(--red)';
-      // Always populate all 4 dropdowns ready for either format
+      // Apply team colours to card labels
+      const t1cl = _g('t1-card-label'), t2cl = _g('t2-card-label');
+      if (t1cl) t1cl.style.color = 'var(--teal)';
+      if (t2cl) t2cl.style.color = 'var(--red)';
+      ['p1-select-label','p3-select-label'].forEach(id => { const e=_g(id); if(e) e.style.color='var(--teal)'; });
+      ['p2-select-label','p4-select-label'].forEach(id => { const e=_g(id); if(e) e.style.color='var(--red)'; });
+      // Populate player dropdowns
       populateTournamentDropdown('p1-name-select', t.team1.players);
       populateTournamentDropdown('p3-name-select', t.team1.players);
       populateTournamentDropdown('p2-name-select', t.team2.players);
       populateTournamentDropdown('p4-name-select', t.team2.players);
-      document.getElementById('p1-name-select-wrap').style.display = 'block';
-      document.getElementById('p2-name-select-wrap').style.display = 'block';
-      // Hide redundant name label+input — the dropdown drives the value
-      ['p1-name','p2-name'].forEach(id => {
-        const el=document.getElementById(id); if(el) el.style.display='none';
-      });
-      ['p1-name-label','p2-name-label'].forEach(id => {
-        const el=document.getElementById(id); if(el) el.style.display='none';
-      });
-      // Restore the match format that was saved with this tournament (default: singles)
+      ['p1-name-select-wrap','p2-name-select-wrap'].forEach(id => { const e=_g(id); if(e) e.style.display='block'; });
+      ['p1-name','p2-name','p1-name-label','p2-name-label'].forEach(id => { const e=_g(id); if(e) e.style.display='none'; });
+      // Restore saved format
       const savedFmt = t.matchFmt || 'singles';
       _teamsMatchFmt = savedFmt;
       setTeamsMatchFormat(savedFmt);
     } else {
-      // Singles tournament: populate p1 & p2 dropdowns from shared roster; no partner slots
-      document.getElementById('teams-match-format-wrap').style.display = 'none';
-      document.getElementById('t1-card-label').textContent = 'Player 1';
-      document.getElementById('t2-card-label').textContent = 'Player 2';
-      populateTournamentDropdown('p1-name-select', t.players);
-      populateTournamentDropdown('p2-name-select', t.players);
-      document.getElementById('p1-name-select-wrap').style.display = 'block';
-      document.getElementById('p2-name-select-wrap').style.display = 'block';
-      // Hide redundant name label+input — the dropdown drives the value
-      ['p1-name','p2-name'].forEach(id => {
-        const el=document.getElementById(id); if(el) el.style.display='none';
-      });
-      ['p1-name-label','p2-name-label'].forEach(id => {
-        const el=document.getElementById(id); if(el) el.style.display='none';
-      });
-      // Ensure 4BBB is off for singles
+      // Singles tournament
+      ['t1-card-label','t2-card-label'].forEach((id,i) => { const e=_g(id); if(e) e.textContent='Player '+(i+1); });
+      populateTournamentDropdown('p1-name-select', t.players||[]);
+      populateTournamentDropdown('p2-name-select', t.players||[]);
+      ['p1-name-select-wrap','p2-name-select-wrap'].forEach(id => { const e=_g(id); if(e) e.style.display='block'; });
+      ['p1-name','p2-name','p1-name-label','p2-name-label'].forEach(id => { const e=_g(id); if(e) e.style.display='none'; });
+      // Ensure 4BBB off
       if (teamPlay) {
         teamPlay = false;
-        document.getElementById('team-toggle').classList.remove('on');
-        document.getElementById('team-label').textContent = 'Off';
-        const _tb=document.getElementById('team-box'),_tbl=document.getElementById('team-box-label'),_tl=document.getElementById('team-label');
-        if(_tb){_tb.style.borderColor='#2a2a2a';_tb.style.background='#141414';}
-        if(_tbl)_tbl.style.color='#888';
-        if(_tl)_tl.style.color='#ccc';
+        const tog=_g('team-toggle'); if(tog) tog.classList.remove('on');
+        const lbl=_g('team-label'); if(lbl) lbl.textContent='Off';
+        const tb=_g('team-box'),tbl=_g('team-box-label');
+        if(tb){tb.style.borderColor='#2a2a2a';tb.style.background='#141414';}
+        if(tbl) tbl.style.color='#888';
       }
-      document.getElementById('p3-fields').style.display = 'none';
-      document.getElementById('p4-fields').style.display = 'none';
+      ['p3-fields','p4-fields'].forEach(id => { const e=_g(id); if(e) e.style.display='none'; });
     }
-    ['p1-name','p2-name','p3-name','p4-name'].forEach(id => {
-      const el = document.getElementById(id); if(el) el.value = '';
-    });
+    ['p1-name','p2-name','p3-name','p4-name'].forEach(id => { const e=_g(id); if(e) e.value=''; });
   } else {
     // No tournament — full reset
-    document.getElementById('teams-match-format-wrap').style.display = 'none';
     teamPlay = false;
-    document.getElementById('team-toggle').classList.remove('on');
-    document.getElementById('team-label').textContent = 'Off';
-    const _tb=document.getElementById('team-box'),_tbl=document.getElementById('team-box-label'),_tl=document.getElementById('team-label');
-    if(_tb){_tb.style.borderColor='#2a2a2a';_tb.style.background='#141414';}
-    if(_tbl)_tbl.style.color='#888';
-    if(_tl)_tl.style.color='#ccc';
-    document.getElementById('p3-fields').style.display = 'none';
-    document.getElementById('p4-fields').style.display = 'none';
+    const tog=_g('team-toggle'); if(tog) tog.classList.remove('on');
+    const lbl=_g('team-label'); if(lbl) lbl.textContent='Off';
+    const tb=_g('team-box'),tbl=_g('team-box-label');
+    if(tb){tb.style.borderColor='#2a2a2a';tb.style.background='#141414';}
+    if(tbl) tbl.style.color='#888';
+    ['p3-fields','p4-fields'].forEach(id => { const e=_g(id); if(e) e.style.display='none'; });
     _syncPlayerLabels();
-    ['p1','p2','p3','p4'].forEach(p => {
-      const w = document.getElementById(p+'-name-select-wrap');
-      if(w) w.style.display = 'none';
-    });
-    // Restore name inputs and labels (hidden during tournament mode)
-    ['p1-name','p2-name','p3-name','p4-name'].forEach(id => {
-      const el=document.getElementById(id); if(el) el.style.display='';
-    });
-    ['p1-name-label','p2-name-label','p3-name-label','p4-name-label'].forEach(id => {
-      const el=document.getElementById(id); if(el) el.style.display='';
-    });
-    // Reset card label and select label colours
-    ['t1-card-label','t2-card-label'].forEach(id => {
-      const el=document.getElementById(id); if(el) el.style.color='';
-    });
-    ['p1-select-label','p2-select-label','p3-select-label','p4-select-label'].forEach(id => {
-      const el=document.getElementById(id); if(el) el.style.color='';
-    });
+    ['p1','p2','p3','p4'].forEach(p => { const e=_g(p+'-name-select-wrap'); if(e) e.style.display='none'; });
+    ['p1-name','p2-name','p3-name','p4-name'].forEach(id => { const e=_g(id); if(e) e.style.display=''; });
+    ['p1-name-label','p2-name-label','p3-name-label','p4-name-label'].forEach(id => { const e=_g(id); if(e) e.style.display=''; });
+    ['t1-card-label','t2-card-label'].forEach(id => { const e=_g(id); if(e) e.style.color=''; });
+    ['p1-select-label','p2-select-label','p3-select-label','p4-select-label'].forEach(id => { const e=_g(id); if(e) e.style.color=''; });
   }
   checkCanStart();
   renderMatchBanner();
@@ -1895,124 +1834,23 @@ function _wizSave() {
 }
 
 function showTournamentForm(editKey) {
-  // Redirected to new wizard
   showTournamentWizard(editKey);
-  return;
-  const form = document.getElementById('tournament-form');
-  const title = document.getElementById('tournament-form-title');
-  const msg = document.getElementById('tournament-form-msg');
-  if (!form) return;
-  form._editKey = editKey || null;
-  msg.style.display = 'none';
-
-  if (editKey && TOURNAMENT[editKey]) {
-    const t = TOURNAMENT[editKey];
-    title.textContent = '✏️ Edit Tournament';
-    document.getElementById('t-name').value = t.label;
-    if (t.type === 'teams') {
-      setTournamentType('teams');
-      document.getElementById('t-team1-name').value = t.team1.name;
-      document.getElementById('t-team2-name').value = t.team2.name;
-      document.getElementById('t-team1-players').value = t.team1.players.join('\n');
-      document.getElementById('t-team2-players').value = t.team2.players.join('\n');
-    } else {
-      setTournamentType('singles');
-      document.getElementById('t-singles-players').value = (t.players||[]).join('\n');
-    }
-  } else {
-    title.textContent = '🏆 New Tournament';
-    document.getElementById('t-name').value = '';
-    document.getElementById('t-team1-name').value = '';
-    document.getElementById('t-team2-name').value = '';
-    document.getElementById('t-team1-players').value = '';
-    document.getElementById('t-team2-players').value = '';
-    document.getElementById('t-singles-players').value = '';
-    setTournamentType('singles');
-  }
-
-  /* add-tournament-btn-wrap removed */
-  document.getElementById('tournament-actions').style.display = 'none';
-  document.getElementById('teams-match-format-wrap').style.display = 'none';
-  form.style.display = 'block';
-  document.getElementById('tournament-select').value = '';
-  onTournamentSelect('');
 }
 
 function hideTournamentForm() {
-  const f = document.getElementById('tournament-form');
-  if (f) f.style.display = 'none';
-  /* add-tournament-btn-wrap removed */
-  document.getElementById('tournament-form')._editKey = null;
+  // removed — legacy dead code
 }
 
 function saveTournament() {
-  // Legacy — redirected to wizard save
-  _wizSave();
-  return;
-  const label = document.getElementById('t-name').value.trim();
-  const form  = document.getElementById('tournament-form');
-  const editKey = form ? form._editKey : null;
-  if (!label) { showTournamentMsg('Enter a tournament name.', 'error'); return; }
-
-  let rec;
-  if (_tFormType === 'teams') {
-    const team1name = document.getElementById('t-team1-name').value.trim();
-    const team2name = document.getElementById('t-team2-name').value.trim();
-    const team1players = document.getElementById('t-team1-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
-    const team2players = document.getElementById('t-team2-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
-    if (!team1name) { showTournamentMsg('Enter a name for Team 1.', 'error'); return; }
-    if (!team2name) { showTournamentMsg('Enter a name for Team 2.', 'error'); return; }
-    if (team1players.length < 1) { showTournamentMsg('Add at least one player to Team 1.', 'error'); return; }
-    if (team2players.length < 1) { showTournamentMsg('Add at least one player to Team 2.', 'error'); return; }
-    rec = { label, type: 'teams', matchFmt: _teamsMatchFmt,
-             team1: { name: team1name, players: team1players },
-             team2: { name: team2name, players: team2players } };
-  } else {
-    const players = document.getElementById('t-singles-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
-    if (players.length < 2) { showTournamentMsg('Add at least 2 players to the roster.', 'error'); return; }
-    rec = { label, type: 'singles', players };
-  }
-
-  const key = editKey || label.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'') || ('t_'+Date.now());
-  TOURNAMENT[key] = rec;
-  persistTournaments();
-  renderTournamentDropdown();
-  showTournamentMsg('✓ Tournament saved!', 'success');
-  setTimeout(() => {
-    hideTournamentForm();
-    const sel = document.getElementById('tournament-select');
-    if (sel) { sel.value = key; onTournamentSelect(key); renderTournamentActions(key); }
-  }, 900);
+  // removed — legacy dead code
 }
 
 function showTournamentMsg(text, type) {
-  const el = document.getElementById('tournament-form-msg');
-  if (!el) { _wizMsg(text, type); return; }
-  el.textContent = text; el.style.display = 'block';
-  el.style.background = type === 'error' ? 'rgba(255,90,90,.12)' : 'rgba(0,232,187,.12)';
-  el.style.color = type === 'error' ? 'var(--red)' : 'var(--teal)';
-  el.style.border = type === 'error' ? '1px solid rgba(255,90,90,.3)' : '1px solid rgba(0,232,187,.3)';
+  // removed — legacy dead code
 }
 
 function renderTournamentActions(key) {
-  const t = TOURNAMENT[key];
-  const el = document.getElementById('tournament-actions');
-  if (!t || !el) return;
-  el.style.display = 'block';
-  /* add-tournament-btn-wrap removed */
-  hideClearTournamentsConfirm();
-  const typeLabel = t.type === 'teams'
-    ? `${t.team1.name} (${t.team1.players.length}) vs ${t.team2.name} (${t.team2.players.length})`
-    : `${(t.players||[]).length} players registered`;
-  el.innerHTML = `
-    <div style="padding:8px 12px;background:#141414;border:1.5px solid #2a2a2a;border-radius:9px;font-size:11px;display:flex;align-items:center;justify-content:space-between;gap:8px">
-      <span style="color:#ccc;font-weight:600">${t.type==='teams'?'👥':'🏌️'} ${typeLabel}</span>
-      <span style="display:flex;gap:8px;flex-shrink:0">
-        <button class="course-action-btn" style="color:var(--teal)" onclick="showTournamentRoster('${key}')">📋</button>
-        <button class="course-action-btn" style="color:var(--teal)" onclick="showTournamentForm('${key}')">✏️ Edit</button>
-        <button class="course-action-btn" style="color:var(--red)" onclick="deleteTournament('${key}')">🗑</button>
-      </span>
-    </div>`;
+  // removed — legacy dead code
 }
 
 function deleteTournament(key) {
@@ -2033,30 +1871,18 @@ function deleteTournament(key) {
 function confirmDeleteTournament(key) {
   delete TOURNAMENT[key];
   persistTournaments();
-  document.getElementById('tournament-select').value = '';
   onTournamentSelect('');
-  document.getElementById('tournament-actions').style.display = 'none';
-  /* add-tournament-btn-wrap removed */
   renderTournamentDropdown();
 }
 
 function showClearTournamentsConfirm() {
-  document.getElementById('clear-tournaments-step1').style.display = 'none';
-  document.getElementById('clear-tournaments-step2').style.display = 'block';
+  // removed — legacy dead code
 }
 function hideClearTournamentsConfirm() {
-  document.getElementById('clear-tournaments-step2').style.display = 'none';
-  document.getElementById('clear-tournaments-step1').style.display = 'block';
+  // removed — legacy dead code
 }
 function confirmClearAllTournaments() {
-  // Remove all user-saved tournaments (never any presets to worry about)
-  Object.keys(TOURNAMENT).forEach(k => { if (!TOURNAMENT[k].preset) delete TOURNAMENT[k]; });
-  persistTournaments();
-  // Reset the selector and hide confirm panel
-  document.getElementById('tournament-select').value = '';
-  onTournamentSelect('');
-  hideClearTournamentsConfirm();
-  renderTournamentDropdown();
+  // removed — legacy dead code
 }
 
 function showTournamentRoster(key) {
@@ -4032,18 +3858,7 @@ checkForSavedGame();
 // ═══════════════════════════════════════════
 
 function renderTournamentResultsDropdown() {
-  const sel = document.getElementById('tr-tournament-select');
-  if (!sel) return;
-  const current = sel.value;
-  sel.innerHTML = '<option value="">— Select tournament —</option>';
-  Object.entries(TOURNAMENT).forEach(([key, t]) => {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = t.label + (t.type === 'teams' ? ' (Teams)' : ' (Singles)');
-    sel.appendChild(opt);
-  });
-  if (current && TOURNAMENT[current]) sel.value = current;
-  if (sel.value) loadTournamentResults(sel.value);
+  // removed — legacy dead code
 }
 
 function loadTournamentResults(key) {
