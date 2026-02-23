@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1450,7 +1453,7 @@ function updateSIDisplay(){
 function toggleTeam() {
   teamPlay=!teamPlay;
   document.getElementById('team-toggle').classList.toggle('on',teamPlay);
-  document.getElementById('team-label').textContent=teamPlay?'On — 4BBB Best Ball':'Off';
+  document.getElementById('team-label').textContent=teamPlay?'On — 4BBB':'Off';
   const _tb=document.getElementById('team-box');
   const _tbl=document.getElementById('team-box-label');
   const _tl=document.getElementById('team-label');
@@ -1661,7 +1664,7 @@ function setTeamsMatchFormat(fmt) {
   if (need4bbb !== teamPlay) {
     teamPlay = need4bbb;
     document.getElementById('team-toggle').classList.toggle('on', teamPlay);
-    document.getElementById('team-label').textContent = teamPlay ? 'On — 4BBB Best Ball' : 'Off';
+    document.getElementById('team-label').textContent = teamPlay ? 'On — 4BBB' : 'Off';
     const _tb=document.getElementById('team-box'),_tbl=document.getElementById('team-box-label'),_tl=document.getElementById('team-label');
     if(_tb){_tb.style.borderColor=teamPlay?'var(--teal)':'#2a2a2a';_tb.style.background=teamPlay?'rgba(0,232,187,.12)':'#141414';}
     if(_tbl)_tbl.style.color=teamPlay?'var(--teal)':'#888';
@@ -1873,7 +1876,7 @@ function renderMatchBanner() {
     document.getElementById('match-tnmt-name').textContent = t.label;
     const isTeams = t.type === 'teams';
     document.getElementById('match-tnmt-fmt').textContent =
-      isTeams ? `Teams · ${_teamsMatchFmt === '4bbb' ? '4BBB Best Ball' : 'Singles Matchplay'}` : 'Singles Tournament';
+      isTeams ? `Teams · ${_teamsMatchFmt === '4bbb' ? '4BBB' : 'Singles Matchplay'}` : 'Singles Tournament';
     banner.style.display = 'block';
     if (fmtRow) fmtRow.style.display = isTeams ? 'block' : 'none';
     // Sync the format tiles in match tab
@@ -1909,7 +1912,7 @@ function renderTournamentTab() {
   if (t && activeWrap) {
     document.getElementById('tnmt-active-name').textContent = t.label;
     const fmt = t.type === 'teams'
-      ? `Teams · ${(t.matchFmt||'singles') === '4bbb' ? '4BBB Best Ball' : 'Singles Matchplay'}`
+      ? `Teams · ${(t.matchFmt||'singles') === '4bbb' ? '4BBB' : 'Singles Matchplay'}`
       : 'Singles Tournament';
     const isClosed = t.status === 'closed';
     document.getElementById('tnmt-active-meta').textContent = fmt + (isClosed ? ' · 🏁 Finalised' : '');
@@ -2229,7 +2232,7 @@ function _wizRender() {
     const t2n  = document.getElementById('wiz-team2-name').value.trim() || 'Team 2';
     const t1p  = document.getElementById('wiz-team1-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
     const t2p  = document.getElementById('wiz-team2-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
-    const fmtLabel = _wizFmt === '4bbb' ? '4BBB Best Ball' : 'Singles Matchplay';
+    const fmtLabel = _wizFmt === '4bbb' ? '4BBB' : 'Singles Matchplay';
     const summary = `
       <div style="margin-bottom:6px"><span style="color:#555">Name:</span> <strong>${name}</strong></div>
       <div style="margin-bottom:6px"><span style="color:#555">Type:</span> <strong>${_wizType === 'teams' ? 'Teams' : 'Singles'}</strong></div>
@@ -3656,7 +3659,7 @@ function renderBanner(results, rawResults){
     } else {
       const t1n = game.team?(game.tournament&&game.tournament.team1name||'Team 1'):p1.name;
       const t2n = game.team?(game.tournament&&game.tournament.team2name||'Team 2'):p2.name;
-      el.innerHTML=`${cnHtml}<div class="score-banner-title">STABLEFORD${game.team?' · 4BBB BEST BALL':''}</div>
+      el.innerHTML=`${cnHtml}<div class="score-banner-title">STABLEFORD${game.team?' · 4BBB':''}</div>
         <div class="stroke-scores">
           <div class="stroke-player">
             <div class="stroke-name" style="color:var(--teal)">${t1n}</div>
@@ -3899,9 +3902,10 @@ function renderHoleEntry(){
   }
 
   const playerBlock=(player,field,gross,strokes,sbCalc,color)=>{
+    const _sc=color||'var(--teal)';  // stroke indicator colour = player colour
     return `<div>
-      <div class="score-player-label" style="color:${color}">${player.name}</div>
-      <div class="score-hcp-sub">Hcp ${player.hcp} · ${strokeLbl(strokes,color)}${strokeDots(strokes,color)}</div>
+      <div class="score-player-label" style="color:${_sc}">${player.name}</div>
+      <div class="score-hcp-sub">Hcp ${player.hcp} · ${strokeLbl(strokes,_sc)}${strokeDots(strokes,_sc)}</div>
       <div class="score-stepper">
         <button class="step-btn" onclick="stepScore('${field}',-1)">−</button>
         <input class="step-val" id="score-${field}" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="15"
