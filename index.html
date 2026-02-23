@@ -223,7 +223,7 @@
   <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, update, remove, onValue, serverTimestamp }
+    import { getDatabase, ref, set, update, remove, onValue, serverTimestamp, runTransaction }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     const firebaseConfig = {
@@ -251,18 +251,36 @@
     };
 
     window._fbStartGame = function(tournamentKey, gameId, meta) {
+      // Don't record startTime yet — we set it when hole 1 is first synced
+      // (10 mins before first hole completed) so setup time is excluded
       set(ref(db, `tournaments/${tournamentKey}/scores/${gameId}/_meta`), {
         ...meta,
-        startTime: Date.now(),
-        status: 'active'
+        status: 'active',
+        firstHoleSynced: false
+      }).catch(()=>{});
+      // Increment active game counter for this tournament
+      const countRef = ref(db, `tournaments/${tournamentKey}/gameCount`);
+      runTransaction(countRef, cur => (cur || 0) + 1).catch(()=>{});
+    };
+
+    window._fbRecordFirstHole = function(tournamentKey, gameId) {
+      // Called once when hole 1 is synced — sets startTime = now - 10 mins
+      const startTime = Date.now() - (10 * 60 * 1000);
+      update(ref(db, `tournaments/${tournamentKey}/scores/${gameId}/_meta`), {
+        startTime,
+        firstHoleSynced: true
       }).catch(()=>{});
     };
 
-    window._fbFinishGame = function(tournamentKey, gameId) {
+    window._fbFinishGame = function(tournamentKey, gameId, durationMinutes) {
       update(ref(db, `tournaments/${tournamentKey}/scores/${gameId}/_meta`), {
         status: 'finished',
-        endTime: Date.now()
+        endTime: Date.now(),
+        durationMinutes: durationMinutes || null
       }).catch(()=>{});
+      // Increment completed counter
+      const doneRef = ref(db, `tournaments/${tournamentKey}/completedCount`);
+      runTransaction(doneRef, cur => (cur || 0) + 1).catch(()=>{});
     };
 
     window._fbStoreResults = function(tournamentKey, resultsPayload) {
@@ -687,13 +705,25 @@
   <!-- Active tournament badge + quick actions -->
   <div id="tnmt-active-wrap" style="display:none;margin:12px 14px 0">
     <div id="tnmt-active-card" style="background:linear-gradient(135deg,rgba(226,184,74,.1),rgba(0,232,187,.06));border:1.5px solid var(--gold);border-radius:14px;padding:16px 18px">
-      <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--gold);margin-bottom:6px">ACTIVE TOURNAMENT</div>
+      <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--gold);margin-bottom:6px" id="tnmt-active-badge">ACTIVE TOURNAMENT</div>
       <div id="tnmt-active-name" style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--text);line-height:1.1"></div>
       <div id="tnmt-active-meta" style="font-size:12px;color:#888;margin-top:4px;font-weight:600"></div>
+      <!-- Match progress (shown when totalMatches set) -->
+      <div id="tnmt-match-progress" style="display:none;margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <span style="font-size:11px;font-weight:700;color:#555;letter-spacing:.5px">MATCHES COMPLETED</span>
+          <span id="tnmt-progress-lbl" style="font-size:13px;font-weight:900;color:var(--teal)">0 / 0</span>
+        </div>
+        <div style="height:6px;background:#1e1e1e;border-radius:3px;overflow:hidden">
+          <div id="tnmt-progress-bar" style="height:100%;background:var(--teal);border-radius:3px;transition:width .4s ease;width:0%"></div>
+        </div>
+      </div>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button onclick="editActiveTournament()" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #3a3a3a;background:#1a1a1a;color:#ccc;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;min-height:44px">✏️ Edit</button>
         <button onclick="showTab('match')" style="flex:2;padding:10px;border-radius:10px;border:none;background:var(--teal);color:#000;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;min-height:44px">⛳ Start a Match</button>
       </div>
+      <!-- Finalise button — appears when all matches complete -->
+      <button id="tnmt-finalise-btn" onclick="showFinaliseModal()" style="display:none;width:100%;margin-top:10px;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--gold),#c9932a);color:#000;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:900;cursor:pointer;min-height:48px;letter-spacing:.5px">🏁 Finalise Tournament</button>
     </div>
   </div>
 
@@ -722,6 +752,20 @@
     </div>
   </div>
 
+</div>
+
+<!-- FINALISE TOURNAMENT MODAL -->
+<div class="modal-overlay hidden" id="finalise-modal">
+  <div class="modal-box" style="max-width:360px">
+    <div class="modal-icon">🏆</div>
+    <div class="modal-title" style="color:var(--gold)">Finalise Tournament</div>
+    <div class="modal-sub" id="finalise-modal-sub">All matches are complete. Confirm the final result and close this tournament.</div>
+    <div id="finalise-score-display" style="margin:18px 0;background:#141414;border:1.5px solid var(--gold);border-radius:12px;padding:16px;text-align:center"></div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" style="width:100%;font-size:15px;background:linear-gradient(135deg,rgba(226,184,74,.2),rgba(226,184,74,.1));border-color:var(--gold);color:var(--gold)" onclick="confirmFinalise()">🏁 Confirm &amp; Close Tournament</button>
+      <button class="btn btn-ghost" style="width:100%;font-size:13px" onclick="document.getElementById('finalise-modal').classList.add('hidden')">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <!-- TOURNAMENT WIZARD MODAL -->
@@ -771,6 +815,7 @@
             <div style="font-size:10px;color:#666;margin-top:2px">Best Ball pairs</div>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -1636,8 +1681,28 @@ function renderTournamentTab() {
     const fmt = t.type === 'teams'
       ? `Teams · ${(t.matchFmt||'singles') === '4bbb' ? '4BBB Best Ball' : 'Singles Matchplay'}`
       : 'Singles Tournament';
-    document.getElementById('tnmt-active-meta').textContent = fmt;
+    const isClosed = t.status === 'closed';
+    document.getElementById('tnmt-active-meta').textContent = fmt + (isClosed ? ' · 🏁 Finalised' : '');
+    const badgeEl = document.getElementById('tnmt-active-badge');
+    if (badgeEl) badgeEl.textContent = isClosed ? 'FINALISED TOURNAMENT' : 'ACTIVE TOURNAMENT';
     activeWrap.style.display = 'block';
+
+    // Match progress bar — only for teams tournaments with totalMatches set
+    const progressWrap = document.getElementById('tnmt-match-progress');
+    const finaliseBtn  = document.getElementById('tnmt-finalise-btn');
+    if (t.type === 'teams' && t.totalMatches) {
+      const completed = _countCompletedMatches();
+      const total     = t.totalMatches;
+      const pct       = Math.min(100, Math.round((completed / total) * 100));
+      document.getElementById('tnmt-progress-lbl').textContent = `${completed} / ${total}`;
+      document.getElementById('tnmt-progress-bar').style.width = pct + '%';
+      if (progressWrap) progressWrap.style.display = 'block';
+      // Show finalise button when all matches done and not already closed
+      if (finaliseBtn) finaliseBtn.style.display = (completed >= total && !isClosed) ? 'block' : 'none';
+    } else {
+      if (progressWrap) progressWrap.style.display = 'none';
+      if (finaliseBtn)  finaliseBtn.style.display  = 'none';
+    }
   } else if (activeWrap) {
     activeWrap.style.display = 'none';
   }
@@ -1691,6 +1756,79 @@ function renderTournamentTab() {
     resultsCard.style.display = activeTournament ? 'block' : 'none';
     if (activeTournament) loadTournamentResults(activeTournament);
   }
+}
+
+/** Count finished matches in local history for the active tournament */
+function _countCompletedMatches() {
+  if (!activeTournament) return 0;
+  // Count unique gameIds in history that belong to this tournament and are finished
+  const seen = new Set();
+  history.forEach(g => {
+    if (g.tournament && g.tournament.key === activeTournament) {
+      seen.add(g.id || (g.startTime + g.players?.p1?.name));
+    }
+  });
+  return seen.size;
+}
+
+function showFinaliseModal() {
+  const t = TOURNAMENT[activeTournament];
+  if (!t) return;
+  const completed = _countCompletedMatches();
+  const total     = t.totalMatches || '?';
+
+  // Build score display from history
+  let t1pts = 0, t2pts = 0, halved = 0;
+  const seen = new Set();
+  history.forEach(g => {
+    if (!g.tournament || g.tournament.key !== activeTournament) return;
+    const uid = g.id || (g.startTime + g.players?.p1?.name);
+    if (seen.has(uid)) return;
+    seen.add(uid);
+    // Determine winner from saved result
+    const res = g.matchResult;
+    if (res === 'p1' || res === 't1') t1pts++;
+    else if (res === 'p2' || res === 't2') t2pts++;
+    else halved++;
+  });
+
+  const t1name = t.team1?.name || 'Team 1';
+  const t2name = t.team2?.name || 'Team 2';
+  const winner = t1pts > t2pts ? t1name : t2pts > t1pts ? t2name : null;
+
+  document.getElementById('finalise-modal-sub').textContent =
+    `${completed} of ${total} matches complete. Confirm to close this tournament.`;
+
+  document.getElementById('finalise-score-display').innerHTML = `
+    <div style="font-size:11px;color:#555;font-weight:700;letter-spacing:1px;margin-bottom:10px">FINAL SCORE</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px">
+      <div style="text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--teal);margin-bottom:4px">${t1name}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:42px;font-weight:900;color:var(--teal);line-height:1">${t1pts}</div>
+      </div>
+      <div style="font-size:20px;color:#333;font-weight:900">—</div>
+      <div style="text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:4px">${t2name}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:42px;font-weight:900;color:var(--red);line-height:1">${t2pts}</div>
+      </div>
+    </div>
+    ${halved ? `<div style="font-size:11px;color:#555;margin-top:8px">${halved} halved</div>` : ''}
+    ${winner ? `<div style="margin-top:12px;font-family:'Playfair Display',serif;font-size:16px;font-weight:900;color:var(--gold)">🏆 ${winner} wins</div>` : `<div style="margin-top:10px;font-size:13px;color:#888">Match Tied</div>`}
+  `;
+
+  document.getElementById('finalise-modal').classList.remove('hidden');
+}
+
+function confirmFinalise() {
+  const t = TOURNAMENT[activeTournament];
+  if (!t) return;
+  t.status = 'closed';
+  t.closedAt = new Date().toISOString();
+  persistTournaments();
+  document.getElementById('finalise-modal').classList.add('hidden');
+  renderTournamentTab();
+  renderMatchBanner();
+  alert(`🏁 "${t.label}" has been finalised and closed.`);
 }
 
 function selectTournamentFromList(key) {
@@ -1868,7 +2006,7 @@ function _wizRender() {
       ${_wizType === 'teams' ? `
       <div style="margin-bottom:6px"><span style="color:#555">Format:</span> <strong>${fmtLabel}</strong></div>
       <div style="margin-bottom:6px"><span style="color:var(--teal)">${t1n}</span>: ${t1p.length} players</div>
-      <div><span style="color:var(--red)">${t2n}</span>: ${t2p.length} players</div>
+      <div style="margin-bottom:6px"><span style="color:var(--red)">${t2n}</span>: ${t2p.length} players</div>
       ` : `
       <div><span style="color:#555">Players:</span> <strong>${document.getElementById('wiz-singles-players').value.split('\n').map(s=>s.trim()).filter(Boolean).length} in roster</strong></div>
       `}`;
@@ -2607,6 +2745,12 @@ function openLeaderboard() {
 function _syncHoleToFirebase(holeNum) {
   if (!game || !game.tournament) return;       // only sync tournament games
   if (!window._fbSyncHole) return;             // Firebase not yet loaded
+  // Record first hole time once (startTime = this moment - 10 mins)
+  if (holeNum === 1 && !game._firstHoleSynced && window._fbRecordFirstHole) {
+    game._firstHoleSynced = true;
+    game._firstHoleTime = Date.now(); // store raw for duration calc
+    window._fbRecordFirstHole(game.tournament.key, String(game.id));
+  }
 
   const tKey = game.tournament.key;
   const gameId = String(game.id);
@@ -4002,12 +4146,21 @@ function finishGame(){
   const results=getHoleResults();
   const status=game.mode==='matchplay'?matchStatus(results):null;
   const standings=game.mode!=='matchplay'&&!game.skins?computeStandings():null;
-  if(game.tournament && window._fbFinishGame) _fbFinishGame(game.tournament.key, String(game.id));
+  // Duration: from first hole (startTime = firstHole - 10mins) to now
+  // If no first hole synced yet, fall back to game.startTime
+  const now = Date.now();
+  const startMs = game._firstHoleTime
+    ? (game._firstHoleTime - 10 * 60 * 1000)
+    : new Date(game.startTime).getTime();
+  const durationMinutes = Math.round((now - startMs) / 60000);
+  if(game.tournament && window._fbFinishGame) _fbFinishGame(game.tournament.key, String(game.id), durationMinutes);
   const _tKeyForResults = game.tournament ? game.tournament.key : null;
-  history.unshift({...game,endTime:new Date().toISOString(),status,standings});
+  history.unshift({...game,endTime:new Date().toISOString(),durationMinutes,status,standings});
   try{localStorage.setItem(LS_HISTORY,JSON.stringify(history));}catch(e){}
   if(_tKeyForResults) setTimeout(()=>_buildAndStoreResults(_tKeyForResults), 200);
   clearAutosave(); // game is complete — remove the in-progress backup
+  // Refresh tournament progress in case this was the last match
+  setTimeout(renderTournamentTab, 200);
   game=null; showTab('history');
 }
 
@@ -4142,7 +4295,7 @@ function renderHistory(){
       <div class="history-header" onclick="toggleHistory(${idx})">
         <div>
           <div class="history-title">${g.team?`${tn1} vs ${tn2}`:`${p1.name} vs ${p2.name}`}</div>
-          <div class="history-sub">${date} · ${isMatch?'Matchplay':isStab?'Stableford':'Stroke Play'}${g.skins?' + Skins':''} · ${g.team?'Teams (4BBB)':'Individual'} · ${played}/18${g.courseName?` · ${g.courseName}`:''}</div>
+          <div class="history-sub">${date} · ${isMatch?'Matchplay':isStab?'Stableford':'Stroke Play'}${g.skins?' + Skins':''} · ${g.team?'Teams (4BBB)':'Individual'} · ${played}/18${g.courseName?` · ${g.courseName}`:''}${g.durationMinutes?` · ⏱ ${g.durationMinutes}m`:''}</div>
           <div class="history-sub" style="margin-top:2px">Hcp: ${p1.name} ${p1.hcp} | ${p2.name} ${p2.hcp}${p3&&g.team?` | ${p3.name} ${p3.hcp}`:''}${p4&&g.team?` | ${p4.name} ${p4.hcp}`:''}</div>
           <div class="history-toggle">▼ Show scorecard</div>
         </div>
