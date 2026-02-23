@@ -405,7 +405,8 @@ function parseEntries(modeFilter) {
         mode: meta.mode||last.mode||'stroke',
         team: meta.team||last.team||false,          // prefer _meta.team — reliable even before holes scored
         teamName: last.teamName||null,
-        mpStatus: last.mpStatus||null,
+        mpStatus:  last.mpStatus||null,
+        mpLeading: last.mpLeading||0,   // 1=Team1 ahead, 2=Team2 ahead, 0=AS
         status: meta.status||'active',
         course: meta.course||'—',
         tLabel: meta.tournamentLabel||currentKey,
@@ -470,31 +471,31 @@ function computeTeamScores(entries) {
     // ── Determine result ──────────────────────────────────────────────────
     let res, resCls, resultLabel;
     if (isMatch) {
-      // mpStatus is from the p1 perspective in the scorecard:
-      // "X UP" = p1 side leads, so if t1 player has "X UP" then t1 leads
-      const t1mp = g.t1.map(p => p.mpStatus).find(s => s && s !== '—') || null;
-      const t2mp = g.t2.map(p => p.mpStatus).find(s => s && s !== '—') || null;
-      const raw  = t1mp || t2mp || 'AS';
+      // mpLeading: 1 = Team1 (p1-side) leads, 2 = Team2 (p2-side) leads, 0 = AS
+      // mpStatus: the label string e.g. "2 UP", "3&2", "All Square"
+      // Use mpLeading from any player — it's the same for all players in a game
+      const anyEntry   = [...g.t1, ...g.t2].find(p => p.mpStatus && p.mpStatus !== '—');
+      const rawLabel   = anyEntry?.mpStatus || 'AS';
+      const leading    = anyEntry?.mpLeading ?? 0;  // 0=AS, 1=Team1, 2=Team2
 
-      if (!raw || raw === 'AS' || raw === '—') {
-        res = 0; resCls = 'as'; halved++;
-        resultLabel = 'AS';
-      } else if (raw.includes('UP')) {
-        // Whoever holds the "UP" string is leading
-        if (t1mp && t1mp.includes('UP')) {
-          res = 1; resCls = 't1'; t1pts++;
-        } else {
-          res = 2; resCls = 't2'; t2pts++;
-        }
-        resultLabel = raw; // e.g. "2 UP" or "1 Up"
-      } else if (raw.includes('&')) {
-        // Finished: "3 & 1", "4 & 2" etc — t1mp present means t1 won
-        if (t1mp) { res = 1; resCls = 't1'; t1pts++; }
-        else       { res = 2; resCls = 't2'; t2pts++; }
-        resultLabel = raw;
+      if (leading === 1) {
+        res = 1; resCls = 't1'; t1pts++;
+        resultLabel = rawLabel;
+      } else if (leading === 2) {
+        res = 2; resCls = 't2'; t2pts++;
+        resultLabel = rawLabel;
+      } else if (rawLabel.includes('&')) {
+        // Finished match — closed with no leading (winner in label e.g. "3&2")
+        // Determine winner from mpLeading on the winning side's players
+        const t1win = g.t1.find(p => (p.mpLeading === 1));
+        const t2win = g.t2.find(p => (p.mpLeading === 2));
+        if (t1win)      { res = 1; resCls = 't1'; t1pts++; }
+        else if (t2win) { res = 2; resCls = 't2'; t2pts++; }
+        else            { res = 0; resCls = 'as'; halved++; }
+        resultLabel = rawLabel;
       } else {
         res = 0; resCls = 'as'; halved++;
-        resultLabel = raw;
+        resultLabel = rawLabel === 'All Square' || !rawLabel ? 'AS' : rawLabel;
       }
     } else if (isStab) {
       const s1 = Math.max(...g.t1.map(p=>p.stabTotal));

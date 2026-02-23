@@ -2275,11 +2275,15 @@ function _syncHoleToFirebase(holeNum) {
   ];
 
   // Pre-compute matchplay status once (same for all players in this game)
-  let mpStatus = null;
+  let mpStatus = null, mpLeading = 0;
   if (isMatch) {
     const results = getHoleResults();
     const st = matchStatus(results);
-    mpStatus = st ? st.label : null;
+    if (st) {
+      mpStatus  = st.label;
+      // leading: 1 = p1-side (Team1) ahead, 2 = p2-side (Team2) ahead, 0 = AS/closed
+      mpLeading = st.closed ? (st.winner || 0) : (st.leading || 0);
+    }
   }
 
   // Compute running totals per player across all completed holes
@@ -2315,7 +2319,8 @@ function _syncHoleToFirebase(holeNum) {
       t1name: team ? t1n : null,
       t2name: team ? t2n : null,
       gameId,   // include gameId in hole data so leaderboard can group correctly
-      mpStatus
+      mpStatus,
+      mpLeading  // 1=Team1(p1-side) leading, 2=Team2(p2-side) leading, 0=AS
     });
   });
 }
