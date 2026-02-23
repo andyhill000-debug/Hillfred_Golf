@@ -94,9 +94,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .selector-wrap{padding:14px 20px 0;max-width:960px;margin:0 auto;}
 .selector-label{font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--muted);margin-bottom:7px;text-transform:uppercase;}
 select.t-select{width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;padding:10px 36px 10px 13px;appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300e8bb' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;}
-.view-tabs{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
-.view-tab{padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:all .15s;}
-.view-tab.active{border-color:var(--teal);background:rgba(0,232,187,.1);color:var(--teal);}
+
 
 /* ── Main table ────────────────────────────────────────────────────────────── */
 .main{max-width:960px;margin:0 auto;padding:14px 20px 48px;}
@@ -261,13 +259,7 @@ select.t-select{width:100%;background:var(--card);border:1.5px solid var(--borde
   <select class="t-select" id="t-select" onchange="onTournamentChange(this.value)">
     <option value="">— Select tournament —</option>
   </select>
-  <div class="view-tabs">
-    <div class="view-tab active" id="vtab-live"    onclick="setView('live')">📡 Live Scores</div>
-    <div class="view-tab"       id="vtab-results"  onclick="setView('results')">🏆 Results</div>
-    <div class="view-tab"       id="vtab-stab"     onclick="setView('stableford')">⭐ Stableford</div>
-    <div class="view-tab"       id="vtab-stroke"   onclick="setView('stroke')">✏️ Stroke</div>
-    <div class="view-tab"       id="vtab-match"    onclick="setView('matchplay')">🏆 Matchplay</div>
-  </div>
+
 </div>
 
 <!-- Main content -->
@@ -297,12 +289,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
 
-let currentView   = 'live';
 let currentKey    = '';
 let liveScores    = {};
-let liveResults   = null;
 let unsubScores   = null;
-let unsubResults  = null;
 
 // ── Rank history for movement arrows ──────────────────────────────────────
 // playerKey -> previous rank (1-based)
@@ -336,9 +325,8 @@ onValue(ref(db, 'tournaments'), snap => {
 // ── Tournament change ──────────────────────────────────────────────────────
 window.onTournamentChange = function(key) {
   currentKey = key;
-  if (unsubScores)  { unsubScores();  unsubScores  = null; }
-  if (unsubResults) { unsubResults(); unsubResults = null; }
-  liveScores  = {}; liveResults = null;
+  if (unsubScores) { unsubScores(); unsubScores = null; }
+  liveScores = {};
   Object.keys(prevRanks).forEach(k => delete prevRanks[k]);
 
   document.getElementById('back-btn').href = 'index.html';
@@ -357,28 +345,12 @@ window.onTournamentChange = function(key) {
     liveScores = snap.val() || {};
     render();
   });
-  unsubResults = onValue(ref(db, `tournaments/${key}/results`), snap => {
-    liveResults = snap.val() || null;
-    render();
-  });
+
 };
 
-// ── View ───────────────────────────────────────────────────────────────────
-window.setView = function(v) {
-  currentView = v;
-  ['live','results','stableford','stroke','matchplay'].forEach(id =>
-    document.getElementById('vtab-'+id).classList.toggle('active', id === v)
-  );
-  render();
-};
-
-// ── Master render ──────────────────────────────────────────────────────────
+// ── Master render — always shows live scores ──────────────────────────────
 function render() {
-  if (currentView === 'results') {
-    renderResults();
-  } else {
-    renderLive(currentView === 'live' ? 'all' : currentView);
-  }
+  renderLive('all');
   const ts = new Date().toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   document.getElementById('last-updated').textContent = `Updated ${ts}`;
 }
@@ -875,93 +847,6 @@ function renderLive(modeFilter) {
     </table>`;
 }
 
-// ══════════════════════════════════════════════════════════════════════════
-// RESULTS VIEW
-// ══════════════════════════════════════════════════════════════════════════
-function renderResults() {
-  const main = document.getElementById('main-content');
-  hideBanner();
-  if (!liveResults) {
-    main.innerHTML = `<div class="state-msg"><div class="icon">📋</div><h3>No results yet</h3><p>Final results appear here once rounds are saved in the scoring app.</p></div>`;
-    return;
-  }
-  const r = liveResults;
-  if (r.type==='singles') renderSinglesResults(main, r);
-  else if (r.type==='teams') renderTeamsResults(main, r);
-}
-
-function renderSinglesResults(main, r) {
-  const isStab = r.dominantMode==='stableford';
-  const colLbl = isStab ? 'PTS' : 'NET';
-  const lb = r.leaderboard || [];
-  const rankEmoji = ['🥇','🥈','🥉'];
-  const rankColors = ['var(--gold)','#aaa','#cd7f32'];
-
-  const rows = lb.map((p,i) => {
-    const em  = rankEmoji[i]||(i+1)+'th';
-    const col = rankColors[i]||'#555';
-    const sc  = isStab ? p.stabTotal : p.netTotal;
-    const avg = isStab ? p.avgStab : p.avgNet;
-    return `<div class="standings-row">
-      <div class="standings-rank">${em}</div>
-      <div class="standings-info">
-        <div class="standings-name" style="color:${col}">${p.name}</div>
-        <div class="standings-sub">${p.rounds} round${p.rounds!==1?'s':''} · Avg ${avg}</div>
-      </div>
-      <div class="standings-score">
-        <div class="standings-pts" style="color:${col}">${sc}</div>
-        <div class="standings-pts-lbl">${colLbl}</div>
-      </div>
-    </div>`;
-  }).join('');
-
-  main.innerHTML = `
-    <div class="standings-card">
-      <div class="standings-header">
-        <h2>${r.label}</h2>
-        <p>${r.roundCount} round${r.roundCount!==1?'s':''} · ${r.dominantMode}</p>
-      </div>
-      ${rows}
-    </div>`;
-}
-
-function renderTeamsResults(main, r) {
-  const winner = r.overallWinner;
-  const winHtml = winner
-    ? `<div class="teams-winner-lbl">🏆 ${winner}</div><div style="font-size:12px;color:var(--muted);margin-top:3px">Overall Winner</div>`
-    : `<div class="teams-winner-lbl" style="color:var(--gold)">All Square — ${r.t1pts} all</div>`;
-
-  const log = (r.matchResults||[]).map(m => {
-    const rc = m.winner===1?'res-t1':m.winner===2?'res-t2':'res-halved';
-    return `<div class="match-log-row">
-      <div class="match-date">${m.date}</div>
-      <div class="match-players">${m.t1players} vs ${m.t2players}<br>
-        <span style="font-size:10px;color:#333">${m.mode} · ${m.format} · ${m.course}</span>
-      </div>
-      <div class="match-result ${rc}">${m.resultLabel}</div>
-    </div>`;
-  }).join('');
-
-  main.innerHTML = `
-    <div class="teams-scoreboard">
-      <div class="teams-result-banner">${winHtml}</div>
-      <div class="tr-grid">
-        <div class="tr-team">
-          <div class="tr-team-name" style="color:var(--teal)">${r.team1name}</div>
-          <div class="tr-pts" style="color:var(--teal)">${r.t1pts}</div>
-          <div class="tr-sub">${r.t1wins}W · ${r.halved}H</div>
-        </div>
-        <div class="tr-vs">VS</div>
-        <div class="tr-team">
-          <div class="tr-team-name" style="color:var(--red)">${r.team2name}</div>
-          <div class="tr-pts" style="color:var(--red)">${r.t2pts}</div>
-          <div class="tr-sub">${r.t2wins}W · ${r.halved}H</div>
-        </div>
-      </div>
-      <div class="match-log-title">Match Results · ${r.totalMatches} played</div>
-      ${log}
-    </div>`;
-}
 
 // Hole detail toggle
 window.toggleDetail = function(i) {
