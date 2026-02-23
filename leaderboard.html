@@ -232,6 +232,53 @@ select.t-select{width:100%;background:var(--card);border:1.5px solid var(--borde
   .team-pts{font-size:38px;}
 }
 
+
+/* ── Filter bar ────────────────────────────────────────────────────────────── */
+#filter-bar{
+  max-width:960px;margin:0 auto;padding:10px 20px 0;
+  display:none; /* hidden until tournament selected */
+}
+.filter-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.filter-search-wrap{
+  flex:1;min-width:160px;position:relative;
+}
+.filter-search{
+  width:100%;background:#0f0f0f;border:1.5px solid #1e1e1e;border-radius:10px;
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;
+  padding:9px 36px 9px 13px;outline:none;transition:border-color .2s;
+  -webkit-appearance:none;
+}
+.filter-search::placeholder{color:#333;}
+.filter-search:focus{border-color:var(--teal);}
+.filter-search-clear{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:#333;font-size:16px;cursor:pointer;
+  padding:4px;display:none;line-height:1;
+}
+.filter-search-clear.visible{display:block;color:#555;}
+.sort-chips{display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.sort-chips::-webkit-scrollbar{display:none;}
+.sort-chip{
+  flex-shrink:0;
+  padding:7px 12px;border-radius:8px;
+  border:1.5px solid #1e1e1e;background:#0f0f0f;
+  color:#444;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;
+  cursor:pointer;letter-spacing:.4px;white-space:nowrap;
+  transition:all .15s;display:flex;align-items:center;gap:4px;
+  min-height:36px;
+}
+.sort-chip:hover{border-color:#333;color:#888;}
+.sort-chip.active{border-color:var(--teal);background:rgba(0,232,187,.07);color:var(--teal);}
+.sort-chip .chip-arrow{font-size:9px;opacity:.6;}
+.filter-results-bar{
+  margin-top:8px;font-size:11px;color:#333;font-weight:600;letter-spacing:.3px;
+  min-height:18px;
+}
+.filter-results-bar .highlight{color:var(--teal);}
+@media(max-width:600px){
+  #filter-bar{padding-left:14px;padding-right:14px;}
+  .filter-search{font-size:14px;}
+}
 </style>
 </head>
 <body>
@@ -260,6 +307,23 @@ select.t-select{width:100%;background:var(--card);border:1.5px solid var(--borde
     <option value="">— Select tournament —</option>
   </select>
 
+</div>
+
+<!-- Filter bar -->
+<div id="filter-bar">
+  <div class="filter-row">
+    <div class="filter-search-wrap">
+      <input class="filter-search" id="filter-search" type="text" placeholder="Search player…" oninput="onFilterInput(this.value)"/>
+      <button class="filter-search-clear" id="filter-search-clear" onclick="clearSearch()">✕</button>
+    </div>
+  </div>
+  <div class="sort-chips" id="sort-chips" style="margin-top:8px">
+    <div class="sort-chip active" data-sort="score"    onclick="setSort('score')">    <span>🏆</span> Score     <span class="chip-arrow" id="arr-score">↑</span></div>
+    <div class="sort-chip"        data-sort="holes"    onclick="setSort('holes')">    <span>⛳</span> Holes     <span class="chip-arrow" id="arr-holes"></span></div>
+    <div class="sort-chip"        data-sort="name"     onclick="setSort('name')">     <span>🔤</span> Name      <span class="chip-arrow" id="arr-name"></span></div>
+    <div class="sort-chip"        data-sort="status"   onclick="setSort('status')">   <span>●</span>  Status    <span class="chip-arrow" id="arr-status"></span></div>
+  </div>
+  <div class="filter-results-bar" id="filter-results-bar"></div>
 </div>
 
 <!-- Main content -->
@@ -292,6 +356,13 @@ const db  = getDatabase(app);
 let currentKey    = '';
 let liveScores    = {};
 let unsubScores   = null;
+
+// ── Filter / sort state ────────────────────────────────────────────────────
+let filterSearch  = '';
+let filterSort    = 'score';   // 'score' | 'holes' | 'name' | 'status'
+let sortDir       = {};        // { score: 1, holes: -1, ... } — 1=asc, -1=desc
+// Defaults: score asc (low=good), holes desc (most played first), name asc, status asc
+const sortDefaults = { score:1, holes:-1, name:1, status:1 };
 
 // ── Rank history for movement arrows ──────────────────────────────────────
 // playerKey -> previous rank (1-based)
@@ -335,11 +406,19 @@ window.onTournamentChange = function(key) {
   if (!key) {
     document.getElementById('main-content').innerHTML =
       `<div class="state-msg"><div class="icon">🏌️</div><h3>Live Leaderboard</h3><p>Select a tournament above.</p></div>`;
+  showFilterBar(false);
     return;
   }
 
   document.getElementById('main-content').innerHTML =
     `<div class="state-msg"><div class="icon">⏳</div><h3>Loading…</h3></div>`;
+  // Show filter bar, reset search on new tournament
+  filterSearch = '';
+  const inp = document.getElementById('filter-search');
+  if (inp) inp.value = '';
+  const clr = document.getElementById('filter-search-clear');
+  if (clr) clr.classList.remove('visible');
+  showFilterBar(true);
 
   unsubScores = onValue(ref(db, `tournaments/${key}/scores`), snap => {
     liveScores = snap.val() || {};
@@ -347,6 +426,102 @@ window.onTournamentChange = function(key) {
   });
 
 };
+
+// ── Filter & sort helpers ─────────────────────────────────────────────────
+window.onFilterInput = function(val) {
+  filterSearch = val.trim().toLowerCase();
+  const clr = document.getElementById('filter-search-clear');
+  if (clr) clr.classList.toggle('visible', filterSearch.length > 0);
+  render();
+};
+
+window.clearSearch = function() {
+  filterSearch = '';
+  const inp = document.getElementById('filter-search');
+  if (inp) inp.value = '';
+  const clr = document.getElementById('filter-search-clear');
+  if (clr) clr.classList.remove('visible');
+  render();
+};
+
+window.setSort = function(key) {
+  if (filterSort === key) {
+    // Toggle direction on second tap
+    sortDir[key] = (sortDir[key] || sortDefaults[key]) * -1;
+  } else {
+    filterSort = key;
+    if (sortDir[key] == null) sortDir[key] = sortDefaults[key];
+  }
+  // Update chip UI
+  document.querySelectorAll('.sort-chip').forEach(c => {
+    const isActive = c.dataset.sort === filterSort;
+    c.classList.toggle('active', isActive);
+  });
+  // Update arrows
+  ['score','holes','name','status'].forEach(k => {
+    const el = document.getElementById('arr-' + k);
+    if (!el) return;
+    if (k !== filterSort) { el.textContent = ''; return; }
+    el.textContent = (sortDir[k] || sortDefaults[k]) === 1 ? '↑' : '↓';
+  });
+  render();
+};
+
+function applyFilterSort(entries) {
+  // 1. Search filter
+  let out = filterSearch
+    ? entries.filter(e => e.name.toLowerCase().includes(filterSearch))
+    : entries;
+
+  // 2. Sort
+  const dir = sortDir[filterSort] ?? sortDefaults[filterSort];
+  out = [...out].sort((a, b) => {
+    switch (filterSort) {
+      case 'score':
+        // Sort by score (mode-aware) — default is already done by parseEntries;
+        // re-sort here to respect direction override
+        if (a.mode === 'stableford') return dir * (b.stabTotal - a.stabTotal);
+        if (a.mode === 'matchplay')  return dir * ((a.mpLeading||0) - (b.mpLeading||0));
+        return dir * (a.netTotal - b.netTotal);
+      case 'holes':
+        return dir * (a.holesPlayed - b.holesPlayed);
+      case 'name':
+        return dir * a.name.localeCompare(b.name);
+      case 'status': {
+        // Finished > Active > Not started
+        const statusOrder = { finished:0, active:1 };
+        const sa = statusOrder[a.status] ?? 2;
+        const sb = statusOrder[b.status] ?? 2;
+        return dir * (sa - sb);
+      }
+    }
+    return 0;
+  });
+
+  return out;
+}
+
+function updateFilterResultsBar(total, filtered) {
+  const bar = document.getElementById('filter-results-bar');
+  if (!bar) return;
+  if (!filterSearch) {
+    bar.innerHTML = '';
+    return;
+  }
+  if (filtered === 0) {
+    bar.innerHTML = `No players match <span class="highlight">"${filterSearch}"</span>`;
+  } else {
+    bar.innerHTML = `Showing <span class="highlight">${filtered}</span> of ${total} player${total!==1?'s':''}`;
+  }
+}
+
+function showFilterBar(visible) {
+  const fb = document.getElementById('filter-bar');
+  if (fb) fb.style.display = visible ? 'block' : 'none';
+  // Hide sort chips for teams view (sort doesn't apply to match cards)
+  const chips = document.getElementById('sort-chips');
+  if (chips) chips.style.display = visible ? 'flex' : 'none';
+}
 
 // ── Master render — always shows live scores ──────────────────────────────
 function render() {
@@ -655,7 +830,7 @@ function showBannerIndividual(entries) {
   entries.forEach((e, i) => { prevRanks[e.key] = i + 1; });
 }
 
-function renderTeamsLive(entries, main) {
+function renderTeamsLive(entries, main, allEntries) {
   hideBanner();
   const ts     = computeTeamScores(entries);
   const tLabel = entries[0]?.tLabel || '';
@@ -713,8 +888,14 @@ function renderTeamsLive(entries, main) {
              : `<div class="match-leading" style="color:#444">All Square</div>`;
 
     // Player name HTML
-    const t1Html = m.t1players.map(n => `<div class="match-player">${n}</div>`).join('');
-    const t2Html = m.t2players.map(n => `<div class="match-player">${n}</div>`).join('');
+    const hlName = n => {
+      if (!filterSearch) return n;
+      const idx = n.toLowerCase().indexOf(filterSearch);
+      if (idx === -1) return `<span style="opacity:.35">${n}</span>`;
+      return n.slice(0,idx) + `<mark style="background:rgba(0,232,187,.25);color:var(--teal);border-radius:3px;padding:0 2px">${n.slice(idx,idx+filterSearch.length)}</mark>` + n.slice(idx+filterSearch.length);
+    };
+    const t1Html = m.t1players.map(n => `<div class="match-player">${hlName(n)}</div>`).join('');
+    const t2Html = m.t2players.map(n => `<div class="match-player">${hlName(n)}</div>`).join('');
 
     // Status dot
     const statusDot = done
@@ -751,21 +932,42 @@ function renderTeamsLive(entries, main) {
 // ══════════════════════════════════════════════════════════════════════════
 function renderLive(modeFilter) {
   const main    = document.getElementById('main-content');
-  const entries = parseEntries(modeFilter);
+  const allEntries = parseEntries(modeFilter);
 
-  if (!entries.length) {
+  if (!allEntries.length) {
     hideBanner();
     main.innerHTML = `<div class="state-msg"><div class="icon">📭</div><h3>No scores yet</h3><p>Scores appear here once players complete holes.</p></div>`;
+    updateFilterResultsBar(0, 0);
     return;
   }
 
   // Route by play type
-  const isTeams = detectTeamPlay(entries);
+  const isTeams = detectTeamPlay(allEntries);
+
   if (isTeams) {
-    renderTeamsLive(entries, main);
+    // Teams: filter by name only (no score sorting — match cards have fixed structure)
+    const sortedChips = document.getElementById('sort-chips');
+    if (sortedChips) sortedChips.style.display = 'none';
+    const filtered = filterSearch
+      ? allEntries.filter(e => e.name.toLowerCase().includes(filterSearch))
+      : allEntries;
+    updateFilterResultsBar(allEntries.length, filtered.length);
+    renderTeamsLive(filtered, main, allEntries);
     return;
   } else {
     hideBanner();
+    // Show sort chips for individual
+    const sortedChips = document.getElementById('sort-chips');
+    if (sortedChips) sortedChips.style.display = 'flex';
+  }
+
+  // Apply filter + sort to individual entries
+  const entries = applyFilterSort(allEntries);
+  updateFilterResultsBar(allEntries.length, entries.length);
+
+  if (!entries.length) {
+    main.innerHTML = `<div class="state-msg"><div class="icon">🔍</div><h3>No match</h3><p>No players match <strong style="color:var(--teal)">"${filterSearch}"</strong>.<br>Try a different name.</p></div>`;
+    return;
   }
 
   // Individual play — build animated leaderboard table
@@ -804,7 +1006,9 @@ function renderLive(modeFilter) {
       <tr class="${i===0?'leader':''}" onclick="toggleDetail(${i})">
         <td><span class="rank-num ${rCls}">${rank}</span></td>
         <td>
-          <div class="p-name">${e.name}</div>
+          <div class="p-name">${filterSearch && e.name.toLowerCase().includes(filterSearch)
+            ? e.name.replace(new RegExp(filterSearch,'gi'), m => `<mark style="background:rgba(0,232,187,.25);color:var(--teal);border-radius:3px;padding:0 2px">${m}</mark>`)
+            : e.name}</div>
           <div class="p-sub">${e.course} · ${e.mode}</div>
         </td>
         <td class="r">${sh}</td>
