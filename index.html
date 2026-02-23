@@ -1492,6 +1492,7 @@ function toggleTeam() {
   document.getElementById('p4-fields').style.display=teamPlay?'block':'none';
   document.getElementById('p3-card').style.display='none';
   document.getElementById('p4-card').style.display='none';
+  _refreshSinglesNote();
   checkCanStart();
 }
 function onP3IndSelectChange(val) {
@@ -1801,7 +1802,7 @@ function onTournamentSelect(val) {
     ['p1','p2','p3','p4'].forEach(p => { const e=_g(p+'-name-select-wrap'); if(e) e.style.display='none'; });
     ['p1-name','p2-name','p3-name','p4-name'].forEach(id => { const e=_g(id); if(e) e.style.display=''; });
     ['p1-name-label','p2-name-label','p3-name-label','p4-name-label'].forEach(id => { const e=_g(id); if(e) e.style.display=''; });
-    ['t1-card-label','t2-card-label'].forEach(id => { const e=_g(id); if(e) e.style.color=''; });
+    // Don't wipe colours here — _syncPlayerLabels (called above) handles them correctly
     ['p1-select-label','p2-select-label','p3-select-label','p4-select-label'].forEach(id => { const e=_g(id); if(e) e.style.color=''; });
   }
   checkCanStart();
