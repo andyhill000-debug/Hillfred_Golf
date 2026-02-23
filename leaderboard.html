@@ -377,83 +377,76 @@ function computeTeamScores(entries) {
   const mode    = entries[0]?.mode   || 'stroke';
   const isStab  = mode === 'stableford';
   const isMatch = mode === 'matchplay';
+  const is4BBB  = entries.some(e => e.team && e.holeData); // pairs = multiple players per team per game
 
-  // Group entries by gameId — each game = one match row
+  // Group by gameId — each game = one match row
   const games = {};
   entries.forEach(e => {
-    if (!games[e.gameId]) games[e.gameId] = { t1:[], t2:[], status: e.status, course: e.course, hp: 0 };
+    if (!games[e.gameId]) games[e.gameId] = { t1:[], t2:[], status:'active', hp:0 };
     if (e.teamName === t1name) games[e.gameId].t1.push(e);
     else                       games[e.gameId].t2.push(e);
-    games[e.gameId].hp = Math.max(games[e.gameId].hp, e.holesPlayed);
+    games[e.gameId].hp     = Math.max(games[e.gameId].hp, e.holesPlayed);
+    if (e.status === 'finished') games[e.gameId].status = 'finished';
   });
 
   let t1pts = 0, t2pts = 0, halved = 0;
   const matchRows = [];
+  let matchNum = 1;
 
   Object.values(games).forEach(g => {
     if (!g.t1.length || !g.t2.length) return;
 
-    const s1 = isStab ? Math.max(...g.t1.map(p=>p.stabTotal)) : Math.min(...g.t1.map(p=>p.netTotal));
-    const s2 = isStab ? Math.max(...g.t2.map(p=>p.stabTotal)) : Math.min(...g.t2.map(p=>p.netTotal));
-
-    // ── Centre status label (one per match, not per player) ──────────────────
-    let res, resCls, statusLabel;
+    // ── Determine result ──────────────────────────────────────────────────
+    let res, resCls, resultLabel;
     if (isMatch) {
-      // mpStatus is stored on the LEADING player's side — "2 UP" means that player leads
-      // Both players in a pair get the same mpStatus string from the scorecard
-      // We need to pick it from a t1 player; if t1 is leading it shows "X UP", else t2 player shows "X UP"
-      const t1mp = g.t1.map(p=>p.mpStatus).find(s=>s) || null;
-      const t2mp = g.t2.map(p=>p.mpStatus).find(s=>s) || null;
-      // The score card stores the P1-perspective status: "X UP" = P1 (t1) leads, "X DN" or others = trailing
-      // Use t1 player's status as source of truth
-      const mpStr = t1mp || t2mp || 'AS';
-      if (mpStr === 'AS' || mpStr === '—') {
-        res=0; resCls='col-grey'; halved++;
-        statusLabel = 'AS';
-      } else if (mpStr.includes('UP')) {
-        // The player who reports "UP" is winning
-        const leadingTeam = t1mp && t1mp.includes('UP') ? t1name : t2name;
-        if (leadingTeam === t1name) { res=1; resCls='col-teal'; t1pts++; }
-        else                        { res=2; resCls='col-red';  t2pts++; }
-        statusLabel = mpStr; // e.g. "2 UP"
+      // mpStatus is from the p1 perspective in the scorecard:
+      // "X UP" = p1 side leads, so if t1 player has "X UP" then t1 leads
+      const t1mp = g.t1.map(p => p.mpStatus).find(s => s && s !== '—') || null;
+      const t2mp = g.t2.map(p => p.mpStatus).find(s => s && s !== '—') || null;
+      const raw  = t1mp || t2mp || 'AS';
+
+      if (!raw || raw === 'AS' || raw === '—') {
+        res = 0; resCls = 'as'; halved++;
+        resultLabel = 'AS';
+      } else if (raw.includes('UP')) {
+        // Whoever holds the "UP" string is leading
+        if (t1mp && t1mp.includes('UP')) {
+          res = 1; resCls = 't1'; t1pts++;
+        } else {
+          res = 2; resCls = 't2'; t2pts++;
+        }
+        resultLabel = raw; // e.g. "2 UP" or "1 Up"
+      } else if (raw.includes('&')) {
+        // Finished: "3 & 1", "4 & 2" etc — t1mp present means t1 won
+        if (t1mp) { res = 1; resCls = 't1'; t1pts++; }
+        else       { res = 2; resCls = 't2'; t2pts++; }
+        resultLabel = raw;
       } else {
-        res=0; resCls='col-grey'; halved++;
-        statusLabel = mpStr;
+        res = 0; resCls = 'as'; halved++;
+        resultLabel = raw;
       }
-    } else if (isStab ? s1>s2 : s1<s2) {
-      res=1; resCls='col-teal'; t1pts++;
-      const gap = Math.abs(s1-s2);
-      statusLabel = `+${gap}`;
-    } else if (isStab ? s2>s1 : s2<s1) {
-      res=2; resCls='col-red'; t2pts++;
-      const gap = Math.abs(s1-s2);
-      statusLabel = `+${gap}`;
+    } else if (isStab) {
+      const s1 = Math.max(...g.t1.map(p=>p.stabTotal));
+      const s2 = Math.max(...g.t2.map(p=>p.stabTotal));
+      if (s1 > s2)      { res=1; resCls='t1'; t1pts++; resultLabel=`${s1} pts`; }
+      else if (s2 > s1) { res=2; resCls='t2'; t2pts++; resultLabel=`${s2} pts`; }
+      else              { res=0; resCls='as'; halved++;  resultLabel='AS'; }
     } else {
-      res=0; resCls='col-grey'; halved++;
-      statusLabel = 'AS';
+      const s1 = Math.min(...g.t1.map(p=>p.netTotal));
+      const s2 = Math.min(...g.t2.map(p=>p.netTotal));
+      if (s1 < s2)      { res=1; resCls='t1'; t1pts++; resultLabel=`Net ${s1}`; }
+      else if (s2 < s1) { res=2; resCls='t2'; t2pts++; resultLabel=`Net ${s2}`; }
+      else              { res=0; resCls='as'; halved++;  resultLabel='AS'; }
     }
 
-    // Player names
-    const t1short = g.t1.map(p=>p.name.split(' ')[0]).join(' & ');
-    const t2short = g.t2.map(p=>p.name.split(' ')[0]).join(' & ');
-
-    // Per-player sub-scores: show gross score for matchplay (not mpStatus),
-    // net diff for stroke, points for stableford
-    const fmtPlayerScore = (p) => {
-      if (isMatch) return p.grossTotal > 0 ? `${p.grossTotal} gross` : '';
-      if (isStab)  return `${p.stabTotal} pts`;
-      const d = p.netTotal - p.par;
-      return d===0 ? 'E' : (d>0?'+':'')+d;
-    };
-    const t1playerScores = g.t1.map(p=>`${p.name.split(' ')[0]}: ${fmtPlayerScore(p)}`);
-    const t2playerScores = g.t2.map(p=>`${p.name.split(' ')[0]}: ${fmtPlayerScore(p)}`);
-
     matchRows.push({
-      t1short, t2short,
-      t1playerScores, t2playerScores,
-      hp: g.hp, res, resCls, statusLabel,
-      status: g.status, course: g.course,
-      isStab, isMatch,
+      matchNum: matchNum++,
+      t1players: g.t1.map(p => p.name),
+      t2players: g.t2.map(p => p.name),
+      resultLabel, res, resCls,
+      hp: g.hp,
+      status: g.status,
+      isPairs: g.t1.length > 1 || g.t2.length > 1,
     });
   });
 
@@ -619,68 +612,89 @@ function showBannerIndividual(entries) {
 }
 
 function renderTeamsLive(entries, main) {
-  // Teams play: render entirely in main-content (no banner), one card per match
   hideBanner();
-  const ts = computeTeamScores(entries);
-  const t1Leading = ts.t1pts > ts.t2pts;
-  const t2Leading = ts.t2pts > ts.t1pts;
+  const ts     = computeTeamScores(entries);
   const tLabel = entries[0]?.tLabel || '';
+  const t1Lead = ts.t1pts > ts.t2pts;
+  const t2Lead = ts.t2pts > ts.t1pts;
 
-  const matchCardsHtml = ts.matchRows.map(m => {
-    const doneBadge = m.status === 'finished'
-      ? `<span style="color:var(--gold);font-size:11px;font-weight:700">✓ Done</span>`
-      : `<span style="color:var(--teal);font-size:11px;font-weight:700">● ${m.hp}/18</span>`;
-    const statusCol = m.res===1 ? 'var(--teal)' : m.res===2 ? 'var(--red)' : '#666';
-    // Determine leading side label
-    const leadLbl = m.res===1 ? ts.t1name : m.res===2 ? ts.t2name : '';
-    const centreLbl = m.statusLabel === 'AS'
-      ? `<span style="color:#666;font-size:15px;font-weight:900;font-family:'Playfair Display',serif">AS</span>`
-      : `<div style="color:${statusCol};font-size:16px;font-weight:900;font-family:'Playfair Display',serif;line-height:1">${m.statusLabel}</div>
-         <div style="color:${statusCol};font-size:10px;font-weight:700;margin-top:2px;letter-spacing:.5px">${leadLbl}</div>`;
+  // ── Banner scoreboard ─────────────────────────────────────────────────────
+  const bannerHtml = `
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-bottom:18px">
+      <div style="background:#111;border:1.5px solid ${t1Lead?'var(--teal)':'#1e1e1e'};border-radius:12px;padding:14px 10px;text-align:center">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--teal);margin-bottom:6px;text-transform:uppercase">${ts.t1name}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:42px;font-weight:900;color:var(--teal);line-height:1">${ts.t1pts}</div>
+        <div style="font-size:11px;color:#555;margin-top:5px">${ts.t1pts}W · ${ts.halved}H</div>
+      </div>
+      <div style="font-size:13px;color:#333;font-weight:700;text-align:center">VS</div>
+      <div style="background:#111;border:1.5px solid ${t2Lead?'var(--red)':'#1e1e1e'};border-radius:12px;padding:14px 10px;text-align:center">
+        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--red);margin-bottom:6px;text-transform:uppercase">${ts.t2name}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:42px;font-weight:900;color:var(--red);line-height:1">${ts.t2pts}</div>
+        <div style="font-size:11px;color:#555;margin-top:5px">${ts.t2pts}W · ${ts.halved}H</div>
+      </div>
+    </div>`;
 
-    const t1subs = m.t1playerScores.map(s=>`<div style="font-size:11px;color:#555;margin-top:2px">${s}</div>`).join('');
-    const t2subs = m.t2playerScores.map(s=>`<div style="font-size:11px;color:#555;margin-top:2px;text-align:right">${s}</div>`).join('');
+  // ── Match table ───────────────────────────────────────────────────────────
+  // Detect if any match is pairs (4BBB) — affects column headers
+  const hasPairs = ts.matchRows.some(m => m.isPairs);
+  const colA = hasPairs ? `${ts.t1name} Players` : `${ts.t1name} Player`;
+  const colB = hasPairs ? `${ts.t2name} Players` : `${ts.t2name} Player`;
+
+  const tableRows = ts.matchRows.map(m => {
+    // Result cell colour
+    const resCss = m.resCls==='t1'
+      ? 'color:var(--teal)'
+      : m.resCls==='t2'
+        ? 'color:var(--red)'
+        : 'color:#666';
+
+    // Status cell
+    const statusHtml = m.status === 'finished'
+      ? `<span style="color:var(--gold);font-weight:700;font-size:12px">✓ Done</span>`
+      : `<span style="color:var(--teal);font-size:12px">● Live</span>`;
+
+    // Player name cells — stack vertically if pairs
+    const t1Html = m.t1players.map(n =>
+      `<div style="font-weight:700;font-size:13px;color:var(--teal)">${n}</div>`
+    ).join('');
+    const t2Html = m.t2players.map(n =>
+      `<div style="font-weight:700;font-size:13px;color:var(--red)">${n}</div>`
+    ).join('');
 
     return `
-      <div style="background:#111;border:1px solid #1e1e1e;border-radius:12px;padding:14px 16px;margin-bottom:10px">
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px">
-          <div>
-            <div style="font-weight:700;font-size:14px;color:var(--teal)">${m.t1short}</div>
-            ${t1subs}
-          </div>
-          <div style="text-align:center;min-width:64px">
-            ${centreLbl}
-            <div style="margin-top:6px">${doneBadge}</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-weight:700;font-size:14px;color:var(--red)">${m.t2short}</div>
-            ${t2subs}
-          </div>
-        </div>
-      </div>`;
+      <tr style="border-bottom:1px solid #161616">
+        <td style="padding:12px 10px;font-size:12px;color:#555;font-weight:700;white-space:nowrap">${m.matchNum}</td>
+        <td style="padding:12px 10px">${t1Html}</td>
+        <td style="padding:12px 10px;text-align:center">
+          <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:900;${resCss};white-space:nowrap">${m.resultLabel}</div>
+        </td>
+        <td style="padding:12px 10px">${t2Html}</td>
+        <td style="padding:12px 10px;text-align:center;color:#666;font-size:12px;white-space:nowrap">${m.hp}/18</td>
+        <td style="padding:12px 10px;text-align:center">${statusHtml}</td>
+      </tr>`;
   }).join('');
 
   main.innerHTML = `
-    <div style="margin-bottom:16px">
+    <div style="margin-bottom:18px">
       <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:900;letter-spacing:-.5px">${tLabel}</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:4px">${ts.matchRows.length} match${ts.matchRows.length!==1?'es':''} · ${ts.mode}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">${ts.matchRows.length} match${ts.matchRows.length!==1?'es':''} · ${ts.mode}${hasPairs?' · 4BBB':''}</div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-bottom:18px;text-align:center">
-      <div style="background:#111;border:1.5px solid ${t1Leading?'var(--teal)':'#1e1e1e'};border-radius:12px;padding:14px 8px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--teal);margin-bottom:4px">${ts.t1name}</div>
-        <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--teal);line-height:1">${ts.t1pts}</div>
-        <div style="font-size:11px;color:#555;margin-top:4px">${ts.t1pts===1?'1W':ts.t1pts+'W'} · ${ts.halved}H</div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:center;font-size:12px;color:#333;font-weight:700">VS</div>
-      <div style="background:#111;border:1.5px solid ${t2Leading?'var(--red)':'#1e1e1e'};border-radius:12px;padding:14px 8px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--red);margin-bottom:4px">${ts.t2name}</div>
-        <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--red);line-height:1">${ts.t2pts}</div>
-        <div style="font-size:11px;color:#555;margin-top:4px">${ts.t2pts===1?'1W':ts.t2pts+'W'} · ${ts.halved}H</div>
-      </div>
-    </div>
-    <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#333;margin-bottom:10px;text-transform:uppercase">Matches</div>
-    ${matchCardsHtml}`;
-}
+    ${bannerHtml}
+    <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#333;margin-bottom:8px;text-transform:uppercase">Match Leaderboard</div>
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="border-bottom:1px solid #222">
+          <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:1px;color:#444;text-transform:uppercase">Match</th>
+          <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:1px;color:var(--teal);text-transform:uppercase">${colA}</th>
+          <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;color:#444;text-transform:uppercase">Result</th>
+          <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:1px;color:var(--red);text-transform:uppercase">${colB}</th>
+          <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;color:#444;text-transform:uppercase">Holes</th>
+          <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:1px;color:#444;text-transform:uppercase">Status</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>`;
+}}
 
 // ══════════════════════════════════════════════════════════════════════════
 // LIVE TABLE VIEW
