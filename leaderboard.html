@@ -1148,25 +1148,20 @@ function renderLive(modeFilter) {
     };
 
     let matchNum = 1;
-    const cards = Object.values(games).map(players => {
-      // Use insertion order — p1 is always first from Firebase
-      const p1e = players[0];
-      const p2e = players[1];
-      if (!p1e || !p2e) return '';
 
-      const hp   = Math.max(p1e.holesPlayed, p2e.holesPlayed || 0);
+    // Helper: render one 1v1 match card from two player entries
+    const renderMatchCard = (p1e, p2e, mn) => {
+      if (!p1e || !p2e) return '';
+      const hp   = Math.max(p1e.holesPlayed || 0, p2e.holesPlayed || 0);
       const pct  = Math.round((hp / 18) * 100);
       const done = p1e.status === 'finished' || p2e.status === 'finished';
       const thru = done ? 'F' : hp === 0 ? 'Not started' : `Thru ${hp}`;
 
-      // mpLeading: 1 = p1 ahead (teal), 2 = p2 ahead (red), 0 = AS
-      // Read from whichever player has a value — both store the same mpLeading number
       const mpLeading = p1e.mpLeading || p2e.mpLeading || 0;
       const p1leads = mpLeading === 1;
       const p2leads = mpLeading === 2;
       const as      = mpLeading === 0;
 
-      // Badge label — strip direction suffix, keep the number e.g. "2 UP", "3&2"
       const anyStatus = p1e.mpStatus || p2e.mpStatus || '';
       const rawLabel  = anyStatus
         .replace(/ DOWN$/,'').replace(/^L /,'').replace(/^W /,'') || 'AS';
@@ -1175,12 +1170,8 @@ function renderLive(modeFilter) {
       const cardCls  = done ? 'imc-done' : p1leads ? 'imc-p1' : p2leads ? 'imc-p2' : 'imc-as';
       const badgeCls = done ? 'mrbg-done' : p1leads ? 'mrbg-t1' : p2leads ? 'mrbg-t2' : 'mrbg-as';
 
-      const winnerName = done
-        ? (p1leads ? p1e.name : p2leads ? p2e.name : 'Halved')
-        : null;
-      const winnerCol = done
-        ? (p1leads ? 'var(--teal)' : p2leads ? 'var(--red)' : 'var(--gold)')
-        : null;
+      const winnerName = done ? (p1leads ? p1e.name : p2leads ? p2e.name : 'Halved') : null;
+      const winnerCol  = done ? (p1leads ? 'var(--teal)' : p2leads ? 'var(--red)' : 'var(--gold)') : null;
       const leadHtml = winnerName
         ? `<div class="match-leading" style="color:${winnerCol}">${winnerName} wins</div>`
         : p1leads
@@ -1189,18 +1180,17 @@ function renderLive(modeFilter) {
             ? `<div class="match-leading" style="color:var(--red)">${p2e.name} leads</div>`
             : `<div class="match-leading" style="color:#444">All Square</div>`;
 
-      const finalCol = p1leads ? 'var(--teal)' : p2leads ? 'var(--red)' : 'var(--gold)';
+      const finalCol  = p1leads ? 'var(--teal)' : p2leads ? 'var(--red)' : 'var(--gold)';
       const statusDot = done
         ? `<span style="color:${finalCol};font-size:10px;font-weight:700">✓ FINAL</span>`
         : `<span style="color:var(--teal);font-size:10px;font-weight:700;animation:blink 1.8s ease infinite">● LIVE</span>`;
 
-      const mn = matchNum++;
       return `
         <div class="ind-match-card ${cardCls}">
           <div class="ind-match-body">
             <div class="ind-player p1-side">
               <div class="ind-player-name">${hlName(p1e.name)}</div>
-              <div class="ind-player-sub">${p1e.course}</div>
+              <div class="ind-player-sub">${p1e.course||''}</div>
             </div>
             <div class="ind-match-centre">
               <div class="match-num">Match ${mn}</div>
@@ -1210,12 +1200,27 @@ function renderLive(modeFilter) {
               ${statusDot}
             </div>
             <div class="ind-player p2-side">
-              <div class="ind-player-name">${hlName(p2e?.name||'')}</div>
-              <div class="ind-player-sub">${p2e?.course||''}</div>
+              <div class="ind-player-name">${hlName(p2e.name||'')}</div>
+              <div class="ind-player-sub">${p2e.course||''}</div>
             </div>
           </div>
           <div class="ind-match-footer"><div class="ind-match-prog" style="width:${pct}%"></div></div>
         </div>`;
+    };
+
+    const cards = Object.values(games).map(players => {
+      // Sort by matchIndex so p3/p4 (matchIndex=2) always follow p1/p2 (matchIndex=1)
+      players.sort((a,b) => (a.matchIndex||1) - (b.matchIndex||1));
+
+      // Split into Match 1 (matchIndex 1 or undefined) and Match 2 (matchIndex 2)
+      const m1 = players.filter(p => (p.matchIndex||1) === 1);
+      const m2 = players.filter(p => p.matchIndex === 2);
+
+      let html = renderMatchCard(m1[0], m1[1], matchNum++);
+      if (m2.length >= 2) {
+        html += renderMatchCard(m2[0], m2[1], matchNum++);
+      }
+      return html;
     }).join('');
 
     main.innerHTML = `

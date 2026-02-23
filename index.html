@@ -2975,11 +2975,16 @@ function _syncHoleToFirebase(holeNum) {
     ...(pc >= 4 ? [{ name: p4.name, hcp: p4.hcp, field: 'p4', teamSlot: 0 }] : []),
   ];
 
-  // Pre-compute matchplay status from p1's perspective
-  let _mpSt = null;
+  // Pre-compute matchplay status — Match 1 (p1 vs p2) and Match 2 (p3 vs p4)
+  let _mpSt = null, _mpSt2 = null;
   if (isMatch) {
-    const results = getHoleResults();
+    const results = getHoleResults();  // p1 vs p2
     _mpSt = matchStatus(results);
+    // Match 2: p3 vs p4 independent status (fourPlayer non-team only)
+    if (!team && pc >= 4) {
+      const res2 = game.holes.map(hh => matchHole1v1(hh.p3, hh.p4, p3.hcp, p4.hcp, msi(hh), null, null));
+      _mpSt2 = matchStatus(res2);
+    }
   }
 
   // Compute running totals per player across all completed holes
@@ -3000,28 +3005,30 @@ function _syncHoleToFirebase(holeNum) {
     const t1n = game.tournament.team1name || 'Team 1';
     const t2n = game.tournament.team2name || 'Team 2';
 
-    // Derive per-player matchplay status:
-    // p1-side (teamSlot 1) sees "1 UP" when ahead — p2-side sees "1 DOWN"
+    // Derive per-player matchplay status
+    // For fourPlayer: p3/p4 use _mpSt2 (their own match), teamSlot 1/2 respectively
     let pMpStatus = null, pMpLeading = 0;
-    if (_mpSt) {
-      const isP1Side = p.teamSlot === 1;
-      const rawLeading = _mpSt.closed ? (_mpSt.winner || 0) : (_mpSt.leading || 0);
-      if (_mpSt.label === 'All Square' || _mpSt.label === 'All Square — Halved') {
+    const _st = (p.field === 'p3' || p.field === 'p4') ? _mpSt2 : _mpSt;
+    const _isP1Side = (p.field === 'p3') ? true : (p.field === 'p4') ? false : (p.teamSlot === 1);
+    if (_st) {
+      const rawLeading = _st.closed ? (_st.winner || 0) : (_st.leading || 0);
+      if (_st.label === 'All Square' || _st.label === 'All Square — Halved') {
         pMpStatus  = 'All Square';
         pMpLeading = 0;
-      } else if (_mpSt.closed) {
-        // Finished — show "W" or "L" + the score label
-        const won = rawLeading === (isP1Side ? 1 : 2);
-        pMpStatus  = won ? `W ${_mpSt.label}` : `L ${_mpSt.label}`;
+      } else if (_st.closed) {
+        const won = rawLeading === (_isP1Side ? 1 : 2);
+        pMpStatus  = won ? `W ${_st.label}` : `L ${_st.label}`;
         pMpLeading = rawLeading;
       } else {
-        // Live — leading player sees "X UP", trailing sees "X DOWN"
-        const leading = rawLeading === (isP1Side ? 1 : 2); // this player is ahead
-        const upNum   = _mpSt.label.replace(' UP','').trim();
+        const leading = rawLeading === (_isP1Side ? 1 : 2);
+        const upNum   = _st.label.replace(' UP','').trim();
         pMpStatus  = leading ? `${upNum} UP` : `${upNum} DOWN`;
         pMpLeading = rawLeading;
       }
     }
+
+    // Tag p3/p4 with matchIndex=2 so the leaderboard knows they belong to Match 2
+    const matchIndex = (p.field === 'p3' || p.field === 'p4') ? 2 : 1;
 
     window._fbSyncHole(tKey, gameId, p.name, holeNum, {
       grossTotal,
@@ -3035,8 +3042,9 @@ function _syncHoleToFirebase(holeNum) {
       t1name: team ? t1n : null,
       t2name: team ? t2n : null,
       gameId,
-      mpStatus:  pMpStatus,
-      mpLeading: pMpLeading
+      mpStatus:   pMpStatus,
+      mpLeading:  pMpLeading,
+      matchIndex: matchIndex
     });
   });
 }
