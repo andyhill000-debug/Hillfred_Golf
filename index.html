@@ -1509,9 +1509,22 @@ function onP4IndSelectChange(val) {
 }
 function _syncPlayerLabels(){
   const isTeam = teamPlay;
-  const isInd  = fourPlayer;
-  document.getElementById('t1-card-label').textContent = isTeam ? 'Team 1 — Player A' : 'Player 1';
-  document.getElementById('t2-card-label').textContent = isTeam ? 'Team 2 — Player A' : 'Player 2';
+  const isFP   = fourPlayer && !isTeam;  // fourPlayer non-team
+  const isMP   = gameMode === 'matchplay';
+  // When fourPlayer + matchplay (no tournament): label p1/p2 as Match 1, p3/p4 as Match 2
+  const useDualMatch = isFP && isMP && !activeTournament;
+
+  const t1cl = document.getElementById('t1-card-label');
+  const t2cl = document.getElementById('t2-card-label');
+  if (t1cl) {
+    t1cl.textContent = isTeam ? 'Team 1 — Player A' : useDualMatch ? 'Player 1 — Match 1' : 'Player 1';
+    t1cl.style.color = useDualMatch ? 'var(--teal)' : '';  // teal for Match 1
+  }
+  if (t2cl) {
+    t2cl.textContent = isTeam ? 'Team 2 — Player A' : useDualMatch ? 'Player 2 — Match 1' : 'Player 2';
+    t2cl.style.color = useDualMatch ? 'var(--red)' : '';   // red for Match 1 opponent
+  }
+
   const p3nl=document.getElementById('p3-name-label');
   const p3sl=document.getElementById('p3-select-label');
   const p4nl=document.getElementById('p4-name-label');
@@ -1585,6 +1598,8 @@ function _refreshSinglesNote() {
   // Show when: 3-4 players mode on + matchplay selected + not 4BBB team format
   const show = fourPlayer && gameMode === 'matchplay' && !teamPlay;
   noteEl.style.display = show ? 'block' : 'none';
+  // Keep p1/p2 labels in sync with dual-match state
+  _syncPlayerLabels();
 }
 
 function checkCanStart() {
@@ -1756,7 +1771,7 @@ function onTournamentSelect(val) {
       setTeamsMatchFormat(savedFmt);
     } else {
       // Singles tournament
-      ['t1-card-label','t2-card-label'].forEach((id,i) => { const e=_g(id); if(e) e.textContent='Player '+(i+1); });
+      ['t1-card-label','t2-card-label'].forEach((id,i) => { const e=_g(id); if(e) { e.textContent='Player '+(i+1); e.style.color=''; } });
       populateTournamentDropdown('p1-name-select', t.players||[]);
       populateTournamentDropdown('p2-name-select', t.players||[]);
       ['p1-name-select-wrap','p2-name-select-wrap'].forEach(id => { const e=_g(id); if(e) e.style.display='block'; });
