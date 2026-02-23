@@ -2352,8 +2352,14 @@ function clearAutosave(){
 /** On app open: check for a saved in-progress game and show the resume modal */
 function checkForSavedGame(){
   let saved;
-  try{ saved=JSON.parse(localStorage.getItem(LS_AUTOSAVE)); }catch(e){}
-  if(!saved || !saved.game) return; // nothing to resume
+  try{ saved=JSON.parse(localStorage.getItem(LS_AUTOSAVE)); }catch(e){
+    console.warn('[Hillfred] autosave parse error:', e); return;
+  }
+  if(!saved || !saved.game){
+    console.log('[Hillfred] No autosave found');
+    return; // nothing to resume
+  }
+  console.log('[Hillfred] Autosave found — showing resume modal', saved.savedAt);
 
   const g=saved.game;
   const {p1,p2,p3,p4}=g.players;
@@ -2394,14 +2400,22 @@ function checkForSavedGame(){
 /** User chose to continue the saved game */
 function resumeGame(){
   let saved;
-  try{ saved=JSON.parse(localStorage.getItem(LS_AUTOSAVE)); }catch(e){}
+  try{ saved=JSON.parse(localStorage.getItem(LS_AUTOSAVE)); }catch(e){
+    console.warn('[Hillfred] resumeGame parse error:', e); return;
+  }
   if(!saved||!saved.game) return;
   game=saved.game;
+  // Restore game mode state to match the saved game
+  gameMode    = game.mode   || 'matchplay';
+  teamPlay    = game.team   || false;
+  fourPlayer  = game.playerCount >= 3;
   // Resume on the first unscored hole, or hole 18 if all done
   const nextHole=game.holes.find(h=>h.p1==null);
   activeHole=nextHole?nextHole.hole:18;
   document.getElementById('resume-modal').classList.add('hidden');
   showTab('play');
+  renderPlay(); // belt-and-braces — ensure scorecard renders
+  console.log('[Hillfred] Game resumed at hole', activeHole);
 }
 
 /** User chose to discard and start fresh */
