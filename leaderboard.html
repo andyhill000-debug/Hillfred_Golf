@@ -687,10 +687,11 @@ function parseEntries(modeFilter) {
         stabTotal:  last.stabTotal||0,
         par:        last.par||0,
         mode: meta.mode||last.mode||'stroke',
-        team: meta.team||last.team||false,          // prefer _meta.team — reliable even before holes scored
+        team: meta.team||last.team||false,
         teamName: last.teamName||null,
         mpStatus:  last.mpStatus||null,
-        mpLeading: last.mpLeading||0,   // 1=Team1 ahead, 2=Team2 ahead, 0=AS
+        mpLeading: last.mpLeading||0,
+        matchIndex: pData.matchIndex||1,            // 1=Match1 (p1/p2), 2=Match2 (p3/p4)
         status: meta.status||'active',
         course: meta.course||'—',
         tLabel: meta.tournamentLabel||currentKey,
@@ -1134,8 +1135,10 @@ function renderLive(modeFilter) {
     // Group entries by gameId — each game = one match card
     const games = {};
     entries.forEach(e => {
-      if (!games[e.gameId]) games[e.gameId] = [];
-      games[e.gameId].push(e);
+      // Key by gameId + matchIndex so Match1 and Match2 get separate cards
+      const gkey = `${e.gameId}_m${e.matchIndex||1}`;
+      if (!games[gkey]) games[gkey] = [];
+      games[gkey].push(e);
     });
 
     const hlName = n => {
@@ -1208,26 +1211,22 @@ function renderLive(modeFilter) {
         </div>`;
     };
 
-    const cards = Object.values(games).map(players => {
-      // Sort by matchIndex so p3/p4 (matchIndex=2) always follow p1/p2 (matchIndex=1)
-      players.sort((a,b) => (a.matchIndex||1) - (b.matchIndex||1));
+    // Sort game groups so Match 1 always appears before Match 2
+    const sortedGames = Object.entries(games)
+      .sort(([ka],[kb]) => ka.localeCompare(kb))
+      .map(([,v]) => v);
 
-      // Split into Match 1 (matchIndex 1 or undefined) and Match 2 (matchIndex 2)
-      const m1 = players.filter(p => (p.matchIndex||1) === 1);
-      const m2 = players.filter(p => p.matchIndex === 2);
-
-      let html = renderMatchCard(m1[0], m1[1], matchNum++);
-      if (m2.length >= 2) {
-        html += renderMatchCard(m2[0], m2[1], matchNum++);
-      }
-      return html;
+    const cards = sortedGames.map(players => {
+      // Each group is already 1 match (2 players) thanks to gameId+matchIndex keying
+      return renderMatchCard(players[0], players[1], matchNum++);
     }).join('');
 
+    const totalMatches = sortedGames.length;
     main.innerHTML = `
       <div class="t-title">
         <div class="t-name">${tLabel}</div>
         <div class="t-meta">
-          <span>⛳ ${Object.keys(games).length} match${Object.keys(games).length!==1?'es':''}</span>
+          <span>⛳ ${totalMatches} match${totalMatches!==1?'es':''}</span>
           ${activeCnt?`<span style="color:var(--teal)">● ${activeCnt} live</span>`:''}
           ${finCnt?`<span style="color:var(--gold)">✓ ${finCnt/2|0} done</span>`:''}
         </div>

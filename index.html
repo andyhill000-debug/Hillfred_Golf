@@ -326,13 +326,12 @@
 
     // ── Expose sync helpers to the main (non-module) script ──────────────────
     window._fbSyncHole = function(tournamentKey, gameId, playerName, holeNum, scores) {
-      // scores = { gross, net, stab, par, holesPlayed }
+      // scores = { gross, net, stab, par, holesPlayed, matchIndex, ... }
+      // Write matchIndex at player root so leaderboard can read it directly
       const path = `tournaments/${tournamentKey}/scores/${gameId}/${playerName.replace(/[.#$/\[\]]/g,'_')}`;
-      update(ref(db, path), {
-        [`h${holeNum}`]: scores,
-        holesPlayed: holeNum,
-        lastUpdated: Date.now()
-      }).catch(()=>{});
+      const rootFields = { [`h${holeNum}`]: scores, holesPlayed: holeNum, lastUpdated: Date.now() };
+      if (scores.matchIndex != null) rootFields.matchIndex = scores.matchIndex;
+      update(ref(db, path), rootFields).catch(()=>{});
     };
 
     window._fbStartGame = function(tournamentKey, gameId, meta) {
