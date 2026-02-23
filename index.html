@@ -1351,9 +1351,10 @@ function onTournamentSelect(val) {
       ['p1-name-label','p2-name-label'].forEach(id => {
         const el=document.getElementById(id); if(el) el.style.display='none';
       });
-      // Default to singles match format (user can switch to 4BBB via the picker)
-      _teamsMatchFmt = 'singles';
-      setTeamsMatchFormat('singles');
+      // Restore the match format that was saved with this tournament (default: singles)
+      const savedFmt = t.matchFmt || 'singles';
+      _teamsMatchFmt = savedFmt;
+      setTeamsMatchFormat(savedFmt);
     } else {
       // Singles tournament: populate p1 & p2 dropdowns from shared roster; no partner slots
       document.getElementById('teams-match-format-wrap').style.display = 'none';
@@ -1538,7 +1539,9 @@ function saveTournament() {
     if (!team2name) { showTournamentMsg('Enter a name for Team 2.', 'error'); return; }
     if (team1players.length < 1) { showTournamentMsg('Add at least one player to Team 1.', 'error'); return; }
     if (team2players.length < 1) { showTournamentMsg('Add at least one player to Team 2.', 'error'); return; }
-    rec = { label, type: 'teams', team1: { name: team1name, players: team1players }, team2: { name: team2name, players: team2players } };
+    rec = { label, type: 'teams', matchFmt: _teamsMatchFmt,
+             team1: { name: team1name, players: team1players },
+             team2: { name: team2name, players: team2players } };
   } else {
     const players = document.getElementById('t-singles-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
     if (players.length < 2) { showTournamentMsg('Add at least 2 players to the roster.', 'error'); return; }
