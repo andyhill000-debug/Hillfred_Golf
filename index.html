@@ -3673,7 +3673,14 @@ function renderDots(results, rawResults){
     let cls='hole-dot';
     if(activeHole===h.hole) cls+=' active';
     else if(isPostMatch && done) cls+=' done-posterity';
-    else if(done&&game.mode==='matchplay') cls+=res===1?' done-win':res===-1?' done-lose':' done-halve';
+    else if(done&&game.mode==='matchplay'){
+      if(game.fourPlayer&&!game.team&&(game.playerCount||2)>=4){
+        // Two concurrent matches — use neutral gold "scored" dot, not win/lose colouring
+        cls+=' done-scored';
+      } else {
+        cls+=res===1?' done-win':res===-1?' done-lose':' done-halve';
+      }
+    }
     else if(done&&game.skins){
       const _sk=getSkinsResults();
       const _sr=_sk?_sk[i]:null;
@@ -3918,9 +3925,25 @@ function renderHoleEntry(){
     const res=game.team
       ?matchHole4BBB(h.p1,h.p3,h.p2,h.p4,p1.hcp,p3.hcp,p2.hcp,p4.hcp,si)
       :matchHole1v1(h.p1,h.p2,p1.hcp,p2.hcp,si);
-    if(res===1)  badgeHtml=`<div class="hole-result-badge badge-win">▲ ${game.team?(game.tournament&&game.tournament.team1name||'Team 1'):p1.name} wins this hole</div>`;
-    if(res===-1) badgeHtml=`<div class="hole-result-badge badge-lose">▼ ${game.team?(game.tournament&&game.tournament.team2name||'Team 2'):p2.name} wins this hole</div>`;
-    if(res===0)  badgeHtml=`<div class="hole-result-badge badge-halve">● Hole Halved</div>`;
+
+    // Match 1 badge
+    const _m1label = game.team?(game.tournament&&game.tournament.team1name||'Team 1'):p1.name;
+    const _m2label = game.team?(game.tournament&&game.tournament.team2name||'Team 2'):p2.name;
+    let badge1='';
+    if(res===1)  badge1=`<div class="hole-result-badge badge-win" style="margin-bottom:6px">▲ <span style="color:var(--teal)">${_m1label}</span>${game.fourPlayer?' (M1)':''} wins this hole</div>`;
+    if(res===-1) badge1=`<div class="hole-result-badge badge-lose" style="margin-bottom:6px">▼ <span style="color:var(--red)">${_m2label}</span>${game.fourPlayer?' (M1)':''} wins this hole</div>`;
+    if(res===0)  badge1=`<div class="hole-result-badge badge-halve" style="margin-bottom:6px">● Hole Halved${game.fourPlayer?' — Match 1':''}</div>`;
+    badgeHtml = badge1;
+
+    // Match 2 badge — only for fourPlayer non-team mode
+    if(game.fourPlayer && !game.team && (game.playerCount||2)>=4){
+      const res2=matchHole1v1(h.p3,h.p4,p3.hcp,p4.hcp,si);
+      let badge2='';
+      if(res2===1)  badge2=`<div class="hole-result-badge badge-win">▲ <span style="color:var(--teal)">${p3.name}</span> (M2) wins this hole</div>`;
+      if(res2===-1) badge2=`<div class="hole-result-badge badge-lose">▼ <span style="color:var(--red)">${p4.name}</span> (M2) wins this hole</div>`;
+      if(res2===0)  badge2=`<div class="hole-result-badge badge-halve">● Hole Halved — Match 2</div>`;
+      badgeHtml += badge2;
+    }
   }
 
   // Only show Next Hole once every active player has a score on this hole
@@ -3974,9 +3997,10 @@ function renderScorecard(results, rawResults){
           + (team ? `<th style="color:var(--teal)">${p3s}</th><th style="color:var(--teal);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
           + `<th style="color:var(--red)">${p2s}</th><th style="color:var(--red);font-size:9px">${isStab?'Pts':'Net'}</th>`
           + (team ? `<th style="color:var(--red)">${p4s}</th><th style="color:var(--red);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
-          + (_fp&&_pc4>=3&&!team ? `<th style="color:var(--teal)">${p3s}</th><th style="color:var(--teal);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
-          + (_fp&&_pc4>=4&&!team ? `<th style="color:var(--red)">${p4s}</th><th style="color:var(--red);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
-          + (isMatch ? '<th style="color:#888;font-size:9px">Res</th>' : '')
+          + (isMatch&&!(_fp&&!team&&_pc4>=4) ? '<th style="color:#888;font-size:9px">Res</th>' : '')
+          + (_fp&&!team&&_pc4>=3 ? `<th style="color:var(--teal)">${p3s}</th><th style="color:var(--teal);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
+          + (_fp&&!team&&_pc4>=4 ? `<th style="color:var(--red)">${p4s}</th><th style="color:var(--red);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
+          + (isMatch&&_fp&&!team&&_pc4>=4 ? '<th style="color:#888;font-size:9px">Res</th>' : '')
         }
       </tr>`;
 
@@ -4075,21 +4099,34 @@ function renderScorecard(results, rawResults){
         <td style="${_skinCol};text-align:center">${_skinTxt}</td>
       </tr>`;
     } else {
-      const _fpBase4=_fp?0:null;
       const n3=_fp&&h.p3!=null?h.p3-strokesOnHole(p3.hcp,0,si,si2h,si3h):null;
       const n4=_fp&&h.p4!=null?h.p4-strokesOnHole(p4.hcp,0,si,si2h,si3h):null;
       const sb3fp=(_fp||team)?stablefordCalc(h.p3,h.par,p3.hcp,si,si2h,si3h):null;
       const sb4fp=(_fp||team)?stablefordCalc(h.p4,h.par,p4.hcp,si,si2h,si3h):null;
+      // Match 2 result (p3 vs p4) for fourPlayer non-team matchplay
+      const _fp2match = _fp&&!team&&_pc4>=4&&isMatch;
+      const res2 = _fp2match ? matchHole1v1(h.p3,h.p4,p3.hcp,p4.hcp,si) : null;
+      // Match 2 per-hole status (for posterity check against match 2 running status)
+      const _res2Sym = res2===1?'▲':res2===-1?'▼':res2===0?'–':'·';
+      const _res2Cls = res2===1?'sc-win':res2===-1?'sc-lose':res2===0?'sc-halve':'';
+      // Hole number cell — neutral (no colouring) when two matches are running
+      const holeCell = _fp2match
+        ? `<td style="font-weight:700;color:#aaa">${h.hole}</td>`
+        : `<td>${h.hole}</td>`;
       rows+=`<tr class="${isAct?'sc-active':''}" onclick="setHole(${h.hole})">
-        <td>${h.hole}</td><td style="color:var(--gold)">${h.par}</td><td style="color:#aaa;font-size:11px;font-weight:600">${si}</td>
-        ${/* All formats: Gross then Net/Pts per player, Res last for matchplay */
+        ${holeCell}<td style="color:var(--gold)">${h.par}</td><td style="color:#aaa;font-size:11px;font-weight:600">${si}</td>
+        ${/* Match 1: p1 gross/net, p2 gross/net, Res1 */
           scoreCell(h.p1,h.par) + (isStab ? ptsCell(sb1) : `<td style="text-align:center">${netScoreDeco(n1,h.par)}</td>`)
           + (team ? scoreCell(h.p3,h.par) + (isStab ? ptsCell(sb3fp) : `<td style="text-align:center">${netScoreDeco(h.p3!=null?h.p3-strokesOnHole(p3.hcp,_mpBase,si,si2h,si3h):null,h.par)}</td>`) : '')
           + scoreCell(h.p2,h.par) + (isStab ? ptsCell(sb2) : `<td style="text-align:center">${netScoreDeco(n2,h.par)}</td>`)
           + (team ? scoreCell(h.p4,h.par) + (isStab ? ptsCell(sb4fp) : `<td style="text-align:center">${netScoreDeco(h.p4!=null?h.p4-strokesOnHole(p4.hcp,_mpBase,si,si2h,si3h):null,h.par)}</td>`) : '')
+          /* Res1 — only when NOT fourPlayer dual-match (in that case Res1 goes here too) */
+          + (isMatch&&!_fp2match ? `<td class="${resCls}">${resSym}</td>` : '')
+          + (isMatch&&_fp2match ? `<td class="${resCls}">${resSym}</td>` : '')
+          /* Match 2: p3 gross/net, p4 gross/net, Res2 */
           + (_fp&&!team&&_pc4>=3 ? scoreCell(h.p3,h.par) + (isStab ? ptsCell(sb3fp) : `<td style="text-align:center">${netScoreDeco(n3,h.par)}</td>`) : '')
           + (_fp&&!team&&_pc4>=4 ? scoreCell(h.p4,h.par) + (isStab ? ptsCell(sb4fp) : `<td style="text-align:center">${netScoreDeco(n4,h.par)}</td>`) : '')
-          + (isMatch ? `<td class="${resCls}">${resSym}</td>` : '')
+          + (_fp2match ? `<td class="${_res2Cls}">${_res2Sym}</td>` : '')
         }
       </tr>`;
     }
