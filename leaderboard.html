@@ -126,6 +126,11 @@ select.t-select{width:100%;background:var(--card);border:1.5px solid var(--borde
 .badge-live{background:rgba(0,232,187,.1);color:var(--teal);border:1px solid rgba(0,232,187,.25);}
 .badge-finished{background:rgba(226,184,74,.1);color:var(--gold);border:1px solid rgba(226,184,74,.25);}
 
+.lb-table thead th.sortable{cursor:pointer;user-select:none;white-space:nowrap;}
+.lb-table thead th.sortable:hover{color:var(--text);}
+.lb-table thead th.sortable.sort-active{color:var(--teal);}
+.th-sort-arrow{display:inline-block;font-size:9px;margin-left:3px;opacity:.4;vertical-align:middle;transition:opacity .15s;}
+.lb-table thead th.sort-active .th-sort-arrow{opacity:1;color:var(--teal);}
 /* Hole detail */
 .hole-detail{display:none;padding:10px 12px;background:#0d0d0d;border-top:1px solid var(--border);}
 .hole-detail.open{display:block;}
@@ -256,20 +261,7 @@ select.t-select{width:100%;background:var(--card);border:1.5px solid var(--borde
   padding:4px;display:none;line-height:1;
 }
 .filter-search-clear.visible{display:block;color:#555;}
-.sort-chips{display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
-.sort-chips::-webkit-scrollbar{display:none;}
-.sort-chip{
-  flex-shrink:0;
-  padding:7px 12px;border-radius:8px;
-  border:1.5px solid #1e1e1e;background:#0f0f0f;
-  color:#444;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;
-  cursor:pointer;letter-spacing:.4px;white-space:nowrap;
-  transition:all .15s;display:flex;align-items:center;gap:4px;
-  min-height:36px;
-}
-.sort-chip:hover{border-color:#333;color:#888;}
-.sort-chip.active{border-color:var(--teal);background:rgba(0,232,187,.07);color:var(--teal);}
-.sort-chip .chip-arrow{font-size:9px;opacity:.6;}
+
 .filter-results-bar{
   margin-top:8px;font-size:11px;color:#333;font-weight:600;letter-spacing:.3px;
   min-height:18px;
@@ -317,12 +309,7 @@ select.t-select{width:100%;background:var(--card);border:1.5px solid var(--borde
       <button class="filter-search-clear" id="filter-search-clear" onclick="clearSearch()">✕</button>
     </div>
   </div>
-  <div class="sort-chips" id="sort-chips" style="margin-top:8px">
-    <div class="sort-chip active" data-sort="score"    onclick="setSort('score')">    <span>🏆</span> Score     <span class="chip-arrow" id="arr-score">↑</span></div>
-    <div class="sort-chip"        data-sort="holes"    onclick="setSort('holes')">    <span>⛳</span> Holes     <span class="chip-arrow" id="arr-holes"></span></div>
-    <div class="sort-chip"        data-sort="name"     onclick="setSort('name')">     <span>🔤</span> Name      <span class="chip-arrow" id="arr-name"></span></div>
-    <div class="sort-chip"        data-sort="status"   onclick="setSort('status')">   <span>●</span>  Status    <span class="chip-arrow" id="arr-status"></span></div>
-  </div>
+
   <div class="filter-results-bar" id="filter-results-bar"></div>
 </div>
 
@@ -363,6 +350,8 @@ let filterSort    = 'score';   // 'score' | 'holes' | 'name' | 'status'
 let sortDir       = {};        // { score: 1, holes: -1, ... } — 1=asc, -1=desc
 // Defaults: score asc (low=good), holes desc (most played first), name asc, status asc
 const sortDefaults = { score:1, holes:-1, name:1, status:1 };
+// Init column header active state to match default sort
+setTimeout(() => setSort('score'), 0);
 
 // ── Rank history for movement arrows ──────────────────────────────────────
 // playerKey -> previous rank (1-based)
@@ -452,17 +441,15 @@ window.setSort = function(key) {
     filterSort = key;
     if (sortDir[key] == null) sortDir[key] = sortDefaults[key];
   }
-  // Update chip UI
-  document.querySelectorAll('.sort-chip').forEach(c => {
-    const isActive = c.dataset.sort === filterSort;
-    c.classList.toggle('active', isActive);
-  });
-  // Update arrows
+  // Update column header active state + arrows
   ['score','holes','name','status'].forEach(k => {
-    const el = document.getElementById('arr-' + k);
-    if (!el) return;
-    if (k !== filterSort) { el.textContent = ''; return; }
-    el.textContent = (sortDir[k] || sortDefaults[k]) === 1 ? '↑' : '↓';
+    const thEl  = document.getElementById('th-' + k);
+    const arrEl = document.getElementById('arr-' + k);
+    const isActive = k === filterSort;
+    if (thEl)  thEl.classList.toggle('sort-active', isActive);
+    if (arrEl) arrEl.textContent = isActive
+      ? ((sortDir[k] ?? sortDefaults[k]) === 1 ? '↑' : '↓')
+      : '';
   });
   render();
 };
@@ -518,9 +505,6 @@ function updateFilterResultsBar(total, filtered) {
 function showFilterBar(visible) {
   const fb = document.getElementById('filter-bar');
   if (fb) fb.style.display = visible ? 'block' : 'none';
-  // Hide sort chips for teams view (sort doesn't apply to match cards)
-  const chips = document.getElementById('sort-chips');
-  if (chips) chips.style.display = visible ? 'flex' : 'none';
 }
 
 // ── Master render — always shows live scores ──────────────────────────────
@@ -946,8 +930,7 @@ function renderLive(modeFilter) {
 
   if (isTeams) {
     // Teams: filter by name only (no score sorting — match cards have fixed structure)
-    const sortedChips = document.getElementById('sort-chips');
-    if (sortedChips) sortedChips.style.display = 'none';
+
     const filtered = filterSearch
       ? allEntries.filter(e => e.name.toLowerCase().includes(filterSearch))
       : allEntries;
@@ -956,9 +939,7 @@ function renderLive(modeFilter) {
     return;
   } else {
     hideBanner();
-    // Show sort chips for individual
-    const sortedChips = document.getElementById('sort-chips');
-    if (sortedChips) sortedChips.style.display = 'flex';
+
   }
 
   // Apply filter + sort to individual entries
@@ -1041,11 +1022,13 @@ function renderLive(modeFilter) {
         ${finCnt?`<span style="color:var(--gold)">✓ ${finCnt} finished</span>`:''}
       </div>
     </div>
-    <table class="lb-table">
+    <table class="lb-table" id="lb-table">
       <thead><tr>
-        <th style="width:32px">#</th><th>Player</th>
-        <th class="r">Score</th><th class="r" style="width:68px">Holes</th>
-        <th class="r" style="width:74px">Status</th>
+        <th style="width:32px">#</th>
+        <th class="sortable" id="th-name"   onclick="setSort('name')"  >Player <span class="th-sort-arrow" id="arr-name"></span></th>
+        <th class="sortable r" id="th-score"  onclick="setSort('score')" >Score  <span class="th-sort-arrow" id="arr-score">↑</span></th>
+        <th class="sortable r" id="th-holes"  onclick="setSort('holes')" style="width:68px">Holes <span class="th-sort-arrow" id="arr-holes"></span></th>
+        <th class="sortable r" id="th-status" onclick="setSort('status')" style="width:74px">Status <span class="th-sort-arrow" id="arr-status"></span></th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
