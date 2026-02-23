@@ -403,14 +403,14 @@ function parseEntries(modeFilter) {
         stabTotal:  last.stabTotal||0,
         par:        last.par||0,
         mode: meta.mode||last.mode||'stroke',
-        team: last.team||false,
+        team: meta.team||last.team||false,          // prefer _meta.team — reliable even before holes scored
         teamName: last.teamName||null,
         mpStatus: last.mpStatus||null,
         status: meta.status||'active',
         course: meta.course||'—',
         tLabel: meta.tournamentLabel||currentKey,
-        t1name: meta.team1name||'Team 1',
-        t2name: meta.team2name||'Team 2',
+        t1name: meta.team1name||last.t1name||'Team 1',
+        t2name: meta.team2name||last.t2name||'Team 2',
         holeData: pData,
       });
     });
@@ -421,26 +421,43 @@ function parseEntries(modeFilter) {
 
 // ── Detect if scores are team play ─────────────────────────────────────────
 function detectTeamPlay(entries) {
-  return entries.length > 0 && entries[0].team;
+  // Check any entry — don't rely solely on first entry which may have team:false
+  return entries.some(e => e.team === true);
 }
 
 // ── Compute live team scores from entries ──────────────────────────────────
 function computeTeamScores(entries) {
-  const t1name  = entries[0]?.t1name || 'Team 1';
-  const t2name  = entries[0]?.t2name || 'Team 2';
+  // Read team names from the first entry that has them — fallback gracefully
+  const _t1 = entries.find(e => e.t1name)?.t1name || 'Team 1';
+  const _t2 = entries.find(e => e.t2name)?.t2name || 'Team 2';
+  const t1name  = _t1;
+  const t2name  = _t2;
   const mode    = entries[0]?.mode   || 'stroke';
   const isStab  = mode === 'stableford';
   const isMatch = mode === 'matchplay';
-  const is4BBB  = entries.some(e => e.team && e.holeData); // pairs = multiple players per team per game
 
   // Group by gameId — each game = one match row
+  // Use each entry's own teamName to bucket into t1/t2 — never rely on global t1name alone
   const games = {};
   entries.forEach(e => {
-    if (!games[e.gameId]) games[e.gameId] = { t1:[], t2:[], status:'active', hp:0 };
-    if (e.teamName === t1name) games[e.gameId].t1.push(e);
-    else                       games[e.gameId].t2.push(e);
-    games[e.gameId].hp     = Math.max(games[e.gameId].hp, e.holesPlayed);
-    if (e.status === 'finished') games[e.gameId].status = 'finished';
+    if (!games[e.gameId]) {
+      // Snapshot the team names from this game's first entry
+      games[e.gameId] = { t1:[], t2:[], status:'active', hp:0,
+        t1name: e.t1name || t1name, t2name: e.t2name || t2name };
+    }
+    const g = games[e.gameId];
+    // Match by teamName string — if teamName is missing fall back to position order
+    if (!e.teamName) {
+      // No teamName stored — use insertion order (first 2 = t1, next 2 = t2)
+      if (g.t1.length <= g.t2.length) g.t1.push(e);
+      else g.t2.push(e);
+    } else if (e.teamName === g.t1name) {
+      g.t1.push(e);
+    } else {
+      g.t2.push(e);
+    }
+    g.hp = Math.max(g.hp, e.holesPlayed);
+    if (e.status === 'finished') g.status = 'finished';
   });
 
   let t1pts = 0, t2pts = 0, halved = 0;
