@@ -185,6 +185,34 @@
   .btn-add-course:hover{border-color:var(--teal);background:rgba(0,232,187,.06)}
   .course-action-btn{background:none;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;padding:5px 8px;border-radius:6px;transition:opacity .15s;min-height:36px;min-width:36px}
   .course-action-btn:hover{opacity:.75}
+
+  /* ── Tournament wizard & list ──────────────────────────────────────────── */
+  .wiz-type-box{background:#141414;border:2px solid #2e2e2e;border-radius:12px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:all .2s;text-align:center}
+  .wiz-type-box.active-box{background:rgba(0,232,187,.1);border-color:var(--teal)}
+  .wiz-step-dot{width:10px;height:10px;border-radius:50%;background:#2a2a2a;transition:background .3s;flex-shrink:0}
+  .wiz-step-dot.active{background:var(--teal)}
+  .wiz-step-dot.done{background:var(--gold)}
+  .wiz-step-line{flex:1;max-width:40px;height:2px;background:#2a2a2a;transition:background .3s}
+  .wiz-step-line.done{background:var(--gold)}
+  .tnmt-item{padding:14px 16px;border-bottom:1px solid #1e1e1e;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .15s}
+  .tnmt-item:last-child{border-bottom:none}
+  .tnmt-item:active{background:#1a1a1a}
+  .tnmt-item.selected{background:rgba(0,232,187,.05);border-left:3px solid var(--teal)}
+  .tnmt-item-icon{font-size:22px;flex-shrink:0}
+  .tnmt-item-info{flex:1;min-width:0}
+  .tnmt-item-name{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tnmt-item-meta{font-size:11px;color:#888;margin-top:2px;font-weight:600}
+  .tnmt-item-actions{display:flex;gap:6px;flex-shrink:0}
+  .tnmt-act-btn{padding:6px 10px;border-radius:8px;border:1.5px solid #2e2e2e;background:#1a1a1a;color:#888;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;min-height:34px;transition:all .15s}
+  .tnmt-act-btn:hover{border-color:var(--teal);color:var(--teal)}
+  .tnmt-act-btn.danger:hover{border-color:var(--red);color:var(--red)}
+  /* Tournament badge in Match tab */
+  #match-tnmt-banner{margin:10px 14px 0;padding:10px 14px;border-radius:11px;background:linear-gradient(135deg,rgba(226,184,74,.1),rgba(0,232,187,.05));border:1px solid var(--gold);display:none;cursor:pointer}
+  .match-tnmt-label{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--gold)}
+  .match-tnmt-name{font-size:14px;font-weight:700;color:var(--text);margin-top:2px}
+  .match-tnmt-fmt{font-size:11px;color:#888;margin-top:1px}
+  /* Match format selector in Match tab */
+  #match-fmt-row{display:none;margin:8px 14px 0}
 </style>
   <!-- Firebase -->
   <script type="module">
@@ -313,14 +341,38 @@
 </div>
 
 <div class="nav">
-  <button class="nav-btn active" onclick="showTab('setup')">⚙️ Setup</button>
-  <button class="nav-btn" onclick="showTab('history')">📋 History</button>
-  <button class="nav-btn" onclick="showTab('tournament')">🏆 Results</button>
-  <button class="nav-btn" onclick="openLeaderboard()" style="color:var(--teal)" title="Live Leaderboard">📡 Live</button>
+  <button class="nav-btn active" id="navbtn-match"      onclick="showTab('match')">⛳ Match</button>
+  <button class="nav-btn"        id="navbtn-tournament" onclick="showTab('tournament')">🏆 Tournament</button>
+  <button class="nav-btn"        id="navbtn-history"    onclick="showTab('history')">📋 History</button>
+  <button class="nav-btn"        id="navbtn-live"       onclick="openLeaderboard()" style="color:var(--teal)">📡 Live</button>
 </div>
 
-<!-- SETUP -->
-<div class="tab active" id="tab-setup">
+<!-- MATCH -->
+<div class="tab active" id="tab-match">
+
+  <!-- Active tournament banner — tap to manage -->
+  <div id="match-tnmt-banner" onclick="showTab('tournament')">
+    <div class="match-tnmt-label">TOURNAMENT</div>
+    <div class="match-tnmt-name" id="match-tnmt-name">—</div>
+    <div class="match-tnmt-fmt" id="match-tnmt-fmt"></div>
+  </div>
+
+  <!-- Match format row — shown only for teams tournament -->
+  <div id="match-fmt-row">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div id="match-fmt-singles-box" onclick="setTeamsMatchFormat('singles')" class="wiz-type-box active-box" style="padding:10px 8px">
+        <div style="font-size:18px;margin-bottom:3px">🏌️</div>
+        <div style="font-size:11px;font-weight:700;color:var(--teal)" id="match-fmt-singles-lbl">Singles</div>
+        <div style="font-size:9px;color:#888;margin-top:1px">1 v 1</div>
+      </div>
+      <div id="match-fmt-4bbb-box" onclick="setTeamsMatchFormat('4bbb')" class="wiz-type-box" style="padding:10px 8px">
+        <div style="font-size:18px;margin-bottom:3px">👥</div>
+        <div style="font-size:11px;font-weight:700;color:#888" id="match-fmt-4bbb-lbl">4BBB</div>
+        <div style="font-size:9px;color:#666;margin-top:1px">Best Ball</div>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-label">Game Mode</div>
     <div class="mode-row">
@@ -346,111 +398,7 @@
       </div>
     </div>
 
-    <div class="divider" style="margin:14px 0 10px"></div>
-    <div class="field-label" style="margin-top:0">Tournament</div>
-    <select class="input" id="tournament-select" onchange="onTournamentSelect(this.value)" style="color:#fff;appearance:none;-webkit-appearance:none;background:#111 url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%228%22 viewBox=%220 0 12 8%22><path d=%22M1 1l5 5 5-5%22 stroke=%22%2300d4aa%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22/></svg>') no-repeat right 13px center;padding-right:36px;cursor:pointer">
-      <option value="">— No tournament —</option>
-    </select>
 
-    <!-- Tournament action row -->
-    <div id="tournament-actions" style="display:none;margin-top:8px"></div>
-
-    <!-- Match format picker — shown only for a teams tournament -->
-    <div id="teams-match-format-wrap" style="display:none;margin-top:10px">
-      <div class="field-label" style="margin-top:0;font-size:10px;letter-spacing:1px">Match Format</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
-        <div id="tmf-singles-box" onclick="setTeamsMatchFormat('singles')" style="background:rgba(0,232,187,.12);border:1.5px solid var(--teal);border-radius:12px;padding:11px 10px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;transition:all .2s">
-          <div style="font-size:16px">🏌️</div>
-          <div id="tmf-singles-lbl" style="font-size:11px;color:var(--teal);font-weight:700;letter-spacing:.5px">Singles</div>
-          <div id="tmf-singles-sub" style="font-size:9px;color:var(--teal);opacity:.8">1 v 1</div>
-        </div>
-        <div id="tmf-4bbb-box" onclick="setTeamsMatchFormat('4bbb')" style="background:#141414;border:1.5px solid #2a2a2a;border-radius:12px;padding:11px 10px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;transition:all .2s">
-          <div style="font-size:16px">👥</div>
-          <div id="tmf-4bbb-lbl" style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px">4BBB</div>
-          <div id="tmf-4bbb-sub" style="font-size:9px;color:#666">Best Ball</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Add tournament button -->
-    <div id="add-tournament-btn-wrap" style="margin-top:8px">
-      <button class="btn-add-course" onclick="showTournamentForm()">🏆 Add New Tournament</button>
-      <div id="clear-tournaments-step1" style="margin-top:8px">
-        <button class="btn btn-ghost" style="width:100%;font-size:12px;color:#ff5a5a;border-color:#3a1a1a" onclick="showClearTournamentsConfirm()">🗑 Clear All Saved Tournaments</button>
-      </div>
-      <div id="clear-tournaments-step2" style="display:none;margin-top:8px;padding:10px 12px;background:#1a0a0a;border:1.5px solid #3a1a1a;border-radius:9px">
-        <div style="color:var(--red);font-size:12px;font-weight:700;margin-bottom:4px">Delete all saved tournaments?</div>
-        <div style="color:#bbb;font-size:11px;margin-bottom:10px">This cannot be undone.</div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost" style="flex:1;font-size:12px;color:var(--red);border-color:#3a1a1a;min-height:40px" onclick="confirmClearAllTournaments()">✓ Delete All</button>
-          <button class="btn btn-ghost" style="flex:1;font-size:12px;min-height:40px" onclick="hideClearTournamentsConfirm()">✕ Cancel</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tournament create/edit form -->
-    <div id="tournament-form" style="display:none;margin-top:14px;background:#141414;border:1.5px solid var(--border);border-radius:12px;padding:16px">
-      <div class="card-label" id="tournament-form-title" style="margin-bottom:12px">🏆 New Tournament</div>
-
-      <!-- Tournament type selector -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
-        <div id="ttype-singles-box" onclick="setTournamentType('singles')" style="background:rgba(0,232,187,.12);border:1.5px solid var(--teal);border-radius:10px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;transition:all .2s">
-          <div style="font-size:18px">🏌️</div>
-          <div id="ttype-singles-lbl" style="font-size:11px;color:var(--teal);font-weight:700;letter-spacing:.5px">Singles</div>
-          <div style="font-size:9px;color:var(--teal);opacity:.8">5–32 players</div>
-        </div>
-        <div id="ttype-teams-box" onclick="setTournamentType('teams')" style="background:#141414;border:1.5px solid #2a2a2a;border-radius:10px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;transition:all .2s">
-          <div style="font-size:18px">👥</div>
-          <div id="ttype-teams-lbl" style="font-size:11px;color:#888;font-weight:700;letter-spacing:.5px">Teams</div>
-          <div style="font-size:9px;color:#666">Singles · Stableford · Stroke · 4BBB</div>
-        </div>
-      </div>
-
-      <div class="field-label" style="margin-top:0">Tournament Name</div>
-      <input class="input" id="t-name" type="text" placeholder="e.g. Club Championship"/>
-
-      <!-- Singles: one player roster -->
-      <div id="t-singles-fields" style="margin-top:12px">
-        <div class="field-label" style="margin-top:0;color:var(--teal)">Player Roster</div>
-        <div style="font-size:10px;color:#888;margin-bottom:6px">One name per line · 5–32 players</div>
-        <textarea class="input" id="t-singles-players" rows="10" placeholder="Alice&#10;Bob&#10;Charlie&#10;Dave&#10;Eve" style="resize:none;font-size:13px;line-height:1.6;padding:10px 12px"></textarea>
-      </div>
-
-      <!-- Teams: two team name + roster columns -->
-      <div id="t-teams-fields" style="display:none;margin-top:12px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <div class="field-label" style="margin-top:0;color:var(--teal)">Team 1 Name</div>
-            <input class="input" id="t-team1-name" type="text" placeholder="e.g. Home"/>
-          </div>
-          <div>
-            <div class="field-label" style="margin-top:0;color:var(--red)">Team 2 Name</div>
-            <input class="input" id="t-team2-name" type="text" placeholder="e.g. Away"/>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
-          <div>
-            <div class="field-label" style="margin-top:0;color:var(--teal)">Team 1 Players</div>
-            <div style="font-size:10px;color:#888;margin-bottom:6px">One name per line</div>
-            <textarea class="input" id="t-team1-players" rows="8" placeholder="Alice&#10;Bob&#10;Charlie" style="resize:none;font-size:13px;line-height:1.6;padding:10px 12px"></textarea>
-          </div>
-          <div>
-            <div class="field-label" style="margin-top:0;color:var(--red)">Team 2 Players</div>
-            <div style="font-size:10px;color:#888;margin-bottom:6px">One name per line</div>
-            <textarea class="input" id="t-team2-players" rows="8" placeholder="Dave&#10;Eve&#10;Frank" style="resize:none;font-size:13px;line-height:1.6;padding:10px 12px"></textarea>
-          </div>
-        </div>
-      </div>
-
-      <div id="tournament-form-msg" style="display:none;margin-top:10px;font-size:12px;font-weight:700;padding:8px 12px;border-radius:8px"></div>
-
-      <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="btn btn-primary" style="flex:2;font-size:13px" onclick="saveTournament()">💾 Save Tournament</button>
-        <button class="btn btn-ghost" style="flex:1;font-size:13px" onclick="hideTournamentForm()">✕ Cancel</button>
-      </div>
-    </div>
-
-    <div id="tournament-badge" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:linear-gradient(135deg,rgba(201,169,97,.12),rgba(0,212,170,.06));border:1px solid var(--gold);text-align:center;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--gold)"></div>
   </div>
 
   <div class="card">
@@ -624,26 +572,141 @@
   </div>
 </div>
 
-<!-- TOURNAMENT RESULTS -->
+<!-- TOURNAMENT -->
 <div class="tab" id="tab-tournament">
-  <div class="card">
-    <div class="card-label">🏆 Tournament Results</div>
-    <div style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5">Select a tournament to consolidate all saved rounds and calculate the overall result.</div>
-    <div class="field-label" style="margin-top:0">Select Tournament</div>
-    <select class="input" id="tr-tournament-select" onchange="loadTournamentResults(this.value)" style="color:#fff;appearance:none;-webkit-appearance:none;background:#111 url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%228%22 viewBox=%220 0 12 8%22><path d=%22M1 1l5 5 5-5%22 stroke=%22%2300d4aa%22 stroke-width=%221.5%22 fill=%22none%22 stroke-linecap=%22round%22/></svg>') no-repeat right 13px center;padding-right:36px;cursor:pointer">
-      <option value="">— Select tournament —</option>
-    </select>
-    <div id="tr-results" style="margin-top:14px"></div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #1e1e1e">
-      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#444;margin-bottom:8px">⚠️ DANGER ZONE</div>
-      <button onclick="confirmClearFirebase()" style="width:100%;padding:12px;background:rgba(255,90,90,.07);border:1.5px solid rgba(255,90,90,.25);border-radius:10px;color:#ff5a5a;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px">🗑 Clear Live Firebase Data for Selected Tournament</button>
-      <div style="font-size:11px;color:#444;margin-top:6px;line-height:1.5">Removes scores and results from the live leaderboard. Does not affect local history on this device.</div>
+  <!-- Active tournament badge + quick actions -->
+  <div id="tnmt-active-wrap" style="display:none;margin:12px 14px 0">
+    <div id="tnmt-active-card" style="background:linear-gradient(135deg,rgba(226,184,74,.1),rgba(0,232,187,.06));border:1.5px solid var(--gold);border-radius:14px;padding:16px 18px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--gold);margin-bottom:6px">ACTIVE TOURNAMENT</div>
+      <div id="tnmt-active-name" style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--text);line-height:1.1"></div>
+      <div id="tnmt-active-meta" style="font-size:12px;color:#888;margin-top:4px;font-weight:600"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button onclick="editActiveTournament()" style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #3a3a3a;background:#1a1a1a;color:#ccc;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;min-height:44px">✏️ Edit</button>
+        <button onclick="showTab('match')" style="flex:2;padding:10px;border-radius:10px;border:none;background:var(--teal);color:#000;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;min-height:44px">⛳ Start a Match</button>
+      </div>
     </div>
-
   </div>
+
+  <!-- Tournament list -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="card-label" style="margin-bottom:0">Tournaments</div>
+      <button onclick="showTournamentWizard()" style="padding:8px 14px;border-radius:9px;border:none;background:var(--teal);color:#000;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer;min-height:40px">+ New</button>
+    </div>
+    <div id="tnmt-list"></div>
+    <div id="tnmt-list-empty" style="display:none;padding:24px 0;text-align:center">
+      <div style="font-size:36px;margin-bottom:10px">🏆</div>
+      <div style="font-size:14px;color:#888;font-weight:600;line-height:1.6">No tournaments yet.<br>Tap <strong style="color:var(--teal)">+ New</strong> to create one.</div>
+    </div>
+  </div>
+
+  <!-- Results & Firebase section -->
+  <div class="card" id="tnmt-results-card" style="display:none">
+    <div class="card-label">📊 Tournament Results</div>
+    <div style="font-size:12px;color:#888;margin-bottom:12px;line-height:1.5">Consolidates all saved rounds for this tournament.</div>
+    <div id="tr-results" style="margin-top:4px"></div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid #1e1e1e">
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:#444;margin-bottom:8px">⚠️ DANGER ZONE</div>
+      <button onclick="confirmClearFirebase()" style="width:100%;padding:12px;background:rgba(255,90,90,.07);border:1.5px solid rgba(255,90,90,.25);border-radius:10px;color:#ff5a5a;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px">🗑 Clear Live Firebase Data</button>
+      <div style="font-size:11px;color:#444;margin-top:6px;line-height:1.5">Removes scores from the live leaderboard. Does not affect local history.</div>
+    </div>
+  </div>
+
 </div>
 
+<!-- TOURNAMENT WIZARD MODAL -->
+<div class="modal-overlay hidden" id="tnmt-wizard-overlay">
+  <div class="modal-box" style="max-height:90vh;overflow-y:auto;padding:24px 20px">
+
+    <!-- Step indicator -->
+    <div id="wiz-steps" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:20px">
+      <div class="wiz-step-dot active" id="wiz-dot-1"></div>
+      <div class="wiz-step-line" id="wiz-line-1"></div>
+      <div class="wiz-step-dot" id="wiz-dot-2"></div>
+      <div class="wiz-step-line" id="wiz-line-2" style="display:none"></div>
+      <div class="wiz-step-dot" id="wiz-dot-3" style="display:none"></div>
+    </div>
+
+    <div id="wiz-step-1">
+      <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--teal);text-align:center;margin-bottom:4px">STEP 1 OF 3</div>
+      <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;text-align:center;margin-bottom:16px">Tournament Type</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+        <div id="wiz-singles-box" onclick="wizSetType('singles')" class="wiz-type-box active-box">
+          <div style="font-size:28px;margin-bottom:6px">🏌️</div>
+          <div style="font-size:13px;font-weight:700;color:var(--teal)">Singles</div>
+          <div style="font-size:10px;color:#888;margin-top:3px">Individual players</div>
+        </div>
+        <div id="wiz-teams-box" onclick="wizSetType('teams')" class="wiz-type-box">
+          <div style="font-size:28px;margin-bottom:6px">👥</div>
+          <div style="font-size:13px;font-weight:700;color:#888" id="wiz-teams-lbl">Teams</div>
+          <div style="font-size:10px;color:#666;margin-top:3px">Two competing sides</div>
+        </div>
+      </div>
+
+      <div class="field-label" style="margin-top:0">Tournament Name</div>
+      <input class="input" id="wiz-name" type="text" placeholder="e.g. Club Championship 2025"/>
+
+      <div id="wiz-matchfmt-wrap" style="display:none;margin-top:16px">
+        <div class="field-label" style="margin-top:0">Match Format</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+          <div id="wiz-fmt-singles" onclick="wizSetFmt('singles')" class="wiz-type-box active-box">
+            <div style="font-size:22px;margin-bottom:4px">🏌️</div>
+            <div style="font-size:12px;font-weight:700;color:var(--teal)" id="wiz-fmt-singles-lbl">Singles</div>
+            <div style="font-size:10px;color:#888;margin-top:2px">1 v 1</div>
+          </div>
+          <div id="wiz-fmt-4bbb" onclick="wizSetFmt('4bbb')" class="wiz-type-box">
+            <div style="font-size:22px;margin-bottom:4px">👥</div>
+            <div style="font-size:12px;font-weight:700;color:#888" id="wiz-fmt-4bbb-lbl">4BBB</div>
+            <div style="font-size:10px;color:#666;margin-top:2px">Best Ball pairs</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wiz-step-2" style="display:none">
+      <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--teal);text-align:center;margin-bottom:4px" id="wiz-step2-label">STEP 2 OF 3</div>
+      <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;text-align:center;margin-bottom:16px" id="wiz-step2-title">Player Roster</div>
+
+      <!-- Singles roster -->
+      <div id="wiz-singles-roster">
+        <div style="font-size:11px;color:#888;margin-bottom:8px;line-height:1.5">One player name per line</div>
+        <textarea class="input" id="wiz-singles-players" rows="10" placeholder="Alice&#10;Bob&#10;Charlie&#10;Dave&#10;Eve" style="resize:none;font-size:14px;line-height:1.7;padding:12px 14px"></textarea>
+      </div>
+
+      <!-- Teams rosters -->
+      <div id="wiz-teams-roster" style="display:none">
+        <div style="margin-bottom:14px">
+          <div class="field-label" style="margin-top:0;color:var(--teal)">Team 1 Name</div>
+          <input class="input" id="wiz-team1-name" type="text" placeholder="e.g. Home" style="margin-bottom:10px"/>
+          <div class="field-label" style="margin-top:0;color:var(--teal)">Team 1 Players <span style="color:#555;font-weight:400;font-size:10px">— one per line</span></div>
+          <textarea class="input" id="wiz-team1-players" rows="5" placeholder="Alice&#10;Bob&#10;Charlie" style="resize:none;font-size:14px;line-height:1.7;padding:12px 14px"></textarea>
+        </div>
+        <div style="margin-top:4px">
+          <div class="field-label" style="margin-top:0;color:var(--red)">Team 2 Name</div>
+          <input class="input" id="wiz-team2-name" type="text" placeholder="e.g. Away" style="margin-bottom:10px"/>
+          <div class="field-label" style="margin-top:0;color:var(--red)">Team 2 Players <span style="color:#555;font-weight:400;font-size:10px">— one per line</span></div>
+          <textarea class="input" id="wiz-team2-players" rows="5" placeholder="Dave&#10;Eve&#10;Frank" style="resize:none;font-size:14px;line-height:1.7;padding:12px 14px"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div id="wiz-step-3" style="display:none">
+      <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--teal);text-align:center;margin-bottom:4px">STEP 3 OF 3</div>
+      <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;text-align:center;margin-bottom:8px">Confirm & Save</div>
+      <div id="wiz-summary" style="background:#141414;border:1.5px solid #2a2a2a;border-radius:12px;padding:16px;margin-bottom:4px;font-size:13px;line-height:1.8;color:#ccc"></div>
+    </div>
+
+    <div id="wiz-msg" style="display:none;margin-top:12px;font-size:12px;font-weight:700;padding:8px 12px;border-radius:8px"></div>
+
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button id="wiz-back-btn" onclick="wizBack()" style="flex:1;padding:14px;border-radius:12px;border:1.5px solid #3a3a3a;background:#252525;color:#ddd;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;min-height:50px;display:none">← Back</button>
+      <button id="wiz-next-btn" onclick="wizNext()" style="flex:2;padding:14px;border-radius:12px;border:none;background:var(--teal);color:#000;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;min-height:50px">Next →</button>
+    </div>
+    <button onclick="hideWizard()" style="width:100%;margin-top:8px;padding:12px;border-radius:12px;border:none;background:transparent;color:#555;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;min-height:44px">Cancel</button>
+  </div>
+</div>
 <!-- PLAY -->
 <div class="tab" id="tab-play">
   <div id="play-empty" class="empty">
@@ -1068,13 +1131,16 @@ function effectiveResults(results) {
 // ═══════════════════════════════════════════
 function showTab(name) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  // Map tab names to nav button ids
+  const navMap = {match:'navbtn-match', tournament:'navbtn-tournament', history:'navbtn-history'};
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  const navIdx = ['setup','history','tournament'].indexOf(name);
-  if(navIdx >= 0) document.querySelectorAll('.nav-btn')[navIdx].classList.add('active');
-  if(name==='play') renderPlay();
-  if(name==='history') renderHistory();
-  if(name==='tournament') renderTournamentResultsDropdown();
+  if(navMap[name]) document.getElementById(navMap[name]).classList.add('active');
+  const tabEl = document.getElementById('tab-'+name);
+  if(tabEl) tabEl.classList.add('active');
+  if(name==='play')       renderPlay();
+  if(name==='history')    renderHistory();
+  if(name==='tournament') renderTournamentTab();
+  if(name==='match')      renderMatchBanner();
 }
 function setMode(m) {
   gameMode=m;
@@ -1287,6 +1353,8 @@ function setTeamsMatchFormat(fmt) {
     if(p4nl)p4nl.textContent='Partner Name'; if(p4sl)p4sl.textContent='Select Partner';
   }
   checkCanStart();
+  _syncMatchFmtTiles();   // keep match tab format tiles in sync
+  renderMatchBanner();    // update match tab banner text
 }
 
 function setTournamentType(type) {
@@ -1321,7 +1389,7 @@ function onTournamentSelect(val) {
   else {
     const actEl = document.getElementById('tournament-actions');
     if(actEl) actEl.style.display = 'none';
-    document.getElementById('add-tournament-btn-wrap').style.display = 'block';
+    /* add-tournament-btn-wrap removed */
   }
 
   if (t) {
@@ -1420,6 +1488,7 @@ function onTournamentSelect(val) {
     });
   }
   checkCanStart();
+  renderMatchBanner();
 }
 
 function populateTournamentDropdown(selectId, players) {
@@ -1452,29 +1521,369 @@ function onPlayerSelect(inputId, selectId) {
 // ── Tournament management ─────────────────────────────────────────────────────
 
 function renderTournamentDropdown() {
+  // Legacy: kept for saveTournament() compatibility — new UI uses renderTournamentTab()
   const sel = document.getElementById('tournament-select');
-  if (!sel) return;
-  const current = sel.value;
-  sel.innerHTML = '<option value="">— No tournament —</option>';
-  Object.entries(TOURNAMENT).forEach(([key, t]) => {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = t.label + (t.type === 'teams' ? ' (Teams)' : ' (Singles)');
-    sel.appendChild(opt);
-  });
-  if (current && TOURNAMENT[current]) sel.value = current;
-  // Show/hide the clear-all button based on whether any user tournaments exist
-  const hasUserT = Object.values(TOURNAMENT).some(t => !t.preset);
-  const s1 = document.getElementById('clear-tournaments-step1');
-  const s2 = document.getElementById('clear-tournaments-step2');
-  if (s1) s1.style.display = hasUserT ? 'block' : 'none';
-  if (s2) s2.style.display = 'none';
+  if (sel) {
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— No tournament —</option>';
+    Object.entries(TOURNAMENT).forEach(([key, t]) => {
+      const opt = document.createElement('option');
+      opt.value = key; opt.textContent = t.label;
+      sel.appendChild(opt);
+    });
+    if (current && TOURNAMENT[current]) sel.value = current;
+  }
+  // Also refresh tournament tab list
+  if (document.getElementById('tab-tournament')?.classList.contains('active')) {
+    renderTournamentTab();
+  }
 }
 
 function persistTournaments() {
   const userT = {};
   Object.entries(TOURNAMENT).forEach(([k,v]) => { if (!v.preset) userT[k] = v; });
   try { localStorage.setItem(LS_TOURNAMENTS, JSON.stringify(userT)); } catch(e) {}
+}
+
+// ── Match tab banner ──────────────────────────────────────────────────────────
+function renderMatchBanner() {
+  const banner = document.getElementById('match-tnmt-banner');
+  const fmtRow  = document.getElementById('match-fmt-row');
+  const t = activeTournament ? TOURNAMENT[activeTournament] : null;
+  if (!banner) return;
+  if (t) {
+    document.getElementById('match-tnmt-name').textContent = t.label;
+    const isTeams = t.type === 'teams';
+    document.getElementById('match-tnmt-fmt').textContent =
+      isTeams ? `Teams · ${_teamsMatchFmt === '4bbb' ? '4BBB Best Ball' : 'Singles Matchplay'}` : 'Singles Tournament';
+    banner.style.display = 'block';
+    if (fmtRow) fmtRow.style.display = isTeams ? 'block' : 'none';
+    // Sync the format tiles in match tab
+    if (isTeams) _syncMatchFmtTiles();
+  } else {
+    banner.style.display = 'none';
+    if (fmtRow) fmtRow.style.display = 'none';
+  }
+}
+
+function _syncMatchFmtTiles() {
+  const is4bbb = _teamsMatchFmt === '4bbb';
+  const sb = document.getElementById('match-fmt-singles-box');
+  const tb = document.getElementById('match-fmt-4bbb-box');
+  const sl = document.getElementById('match-fmt-singles-lbl');
+  const tl = document.getElementById('match-fmt-4bbb-lbl');
+  if(sb) { sb.className = 'wiz-type-box' + (!is4bbb ? ' active-box' : ''); }
+  if(tb) { tb.className = 'wiz-type-box' + ( is4bbb ? ' active-box' : ''); }
+  if(sl) sl.style.color = !is4bbb ? 'var(--teal)' : '#888';
+  if(tl) tl.style.color =  is4bbb ? 'var(--teal)' : '#888';
+}
+
+// ── Tournament tab renderer ───────────────────────────────────────────────────
+function renderTournamentTab() {
+  const keys = Object.keys(TOURNAMENT);
+  const listEl = document.getElementById('tnmt-list');
+  const emptyEl = document.getElementById('tnmt-list-empty');
+  const activeWrap = document.getElementById('tnmt-active-wrap');
+  const resultsCard = document.getElementById('tnmt-results-card');
+
+  // Active tournament banner
+  const t = activeTournament ? TOURNAMENT[activeTournament] : null;
+  if (t && activeWrap) {
+    document.getElementById('tnmt-active-name').textContent = t.label;
+    const fmt = t.type === 'teams'
+      ? `Teams · ${(t.matchFmt||'singles') === '4bbb' ? '4BBB Best Ball' : 'Singles Matchplay'}`
+      : 'Singles Tournament';
+    document.getElementById('tnmt-active-meta').textContent = fmt;
+    activeWrap.style.display = 'block';
+  } else if (activeWrap) {
+    activeWrap.style.display = 'none';
+  }
+
+  // Tournament list
+  if (!keys.length) {
+    if (listEl) listEl.innerHTML = '';
+    if (emptyEl) emptyEl.style.display = 'block';
+    if (resultsCard) resultsCard.style.display = 'none';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  if (listEl) {
+    listEl.innerHTML = keys.map(key => {
+      const t = TOURNAMENT[key];
+      const icon = t.type === 'teams' ? '👥' : '🏌️';
+      const meta = t.type === 'teams'
+        ? `Teams · ${t.team1.name} vs ${t.team2.name}`
+        : `Singles · ${(t.players||[]).length} players`;
+      const isActive = key === activeTournament;
+      return `<div class="tnmt-item${isActive?' selected':''}" onclick="selectTournamentFromList('${key}')">
+        <div class="tnmt-item-icon">${icon}</div>
+        <div class="tnmt-item-info">
+          <div class="tnmt-item-name">${t.label}</div>
+          <div class="tnmt-item-meta">${meta}${isActive?' · <span style="color:var(--teal)">Active</span>':''}</div>
+        </div>
+        <div class="tnmt-item-actions" onclick="event.stopPropagation()">
+          <button class="tnmt-act-btn" onclick="showTournamentWizard('${key}')">✏️</button>
+          <button class="tnmt-act-btn danger" onclick="deleteTournament('${key}')">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Results card — show if active tournament set
+  if (resultsCard) {
+    resultsCard.style.display = activeTournament ? 'block' : 'none';
+    if (activeTournament) loadTournamentResults(activeTournament);
+  }
+}
+
+function selectTournamentFromList(key) {
+  activeTournament = key;
+  const t = TOURNAMENT[key];
+  if (t && t.type === 'teams') {
+    const savedFmt = t.matchFmt || 'singles';
+    _teamsMatchFmt = savedFmt;
+    setTeamsMatchFormat(savedFmt);
+  }
+  // Also set up player dropdowns for Match tab
+  onTournamentSelect(key);
+  renderTournamentTab();
+  renderMatchBanner();
+}
+
+function editActiveTournament() {
+  if (activeTournament) showTournamentWizard(activeTournament);
+}
+
+function deleteTournament(key) {
+  if (!confirm(`Delete tournament "${TOURNAMENT[key]?.label}"? This cannot be undone.`)) return;
+  delete TOURNAMENT[key];
+  if (activeTournament === key) {
+    activeTournament = null;
+    onTournamentSelect('');
+    renderMatchBanner();
+  }
+  persistTournaments();
+  renderTournamentTab();
+}
+
+// ── Tournament creation wizard ────────────────────────────────────────────────
+let _wizStep = 1;
+let _wizType = 'singles';   // 'singles' | 'teams'
+let _wizFmt  = 'singles';   // 'singles' | '4bbb'
+let _wizEditKey = null;
+
+function showTournamentWizard(editKey) {
+  _wizStep = 1;
+  _wizEditKey = editKey || null;
+  _wizType = 'singles';
+  _wizFmt  = 'singles';
+
+  // Clear fields
+  document.getElementById('wiz-name').value = '';
+  document.getElementById('wiz-singles-players').value = '';
+  document.getElementById('wiz-team1-name').value = '';
+  document.getElementById('wiz-team2-name').value = '';
+  document.getElementById('wiz-team1-players').value = '';
+  document.getElementById('wiz-team2-players').value = '';
+  document.getElementById('wiz-msg').style.display = 'none';
+
+  if (editKey && TOURNAMENT[editKey]) {
+    const t = TOURNAMENT[editKey];
+    document.getElementById('wiz-name').value = t.label;
+    _wizType = t.type || 'singles';
+    _wizFmt  = t.matchFmt || 'singles';
+    if (t.type === 'teams') {
+      document.getElementById('wiz-team1-name').value = t.team1.name;
+      document.getElementById('wiz-team2-name').value = t.team2.name;
+      document.getElementById('wiz-team1-players').value = (t.team1.players||[]).join('\n');
+      document.getElementById('wiz-team2-players').value = (t.team2.players||[]).join('\n');
+    } else {
+      document.getElementById('wiz-singles-players').value = (t.players||[]).join('\n');
+    }
+  }
+
+  _wizRender();
+  document.getElementById('tnmt-wizard-overlay').classList.remove('hidden');
+}
+
+function hideWizard() {
+  document.getElementById('tnmt-wizard-overlay').classList.add('hidden');
+}
+
+function wizSetType(type) {
+  _wizType = type;
+  const is4bbb = _wizFmt === '4bbb';
+  // Update type tiles
+  const sb = document.getElementById('wiz-singles-box');
+  const tb = document.getElementById('wiz-teams-box');
+  const tl = document.getElementById('wiz-teams-lbl');
+  if (sb) sb.className = 'wiz-type-box' + (type==='singles' ? ' active-box' : '');
+  if (tb) tb.className = 'wiz-type-box' + (type==='teams'   ? ' active-box' : '');
+  if (tl) tl.style.color = type==='teams' ? 'var(--teal)' : '#888';
+  const tSinglesLbl = document.getElementById('wiz-singles-box')?.querySelector('div:nth-child(2)');
+  if (tSinglesLbl) tSinglesLbl.style.color = type==='singles' ? 'var(--teal)' : '#888';
+  // Show/hide match format picker
+  const fwrap = document.getElementById('wiz-matchfmt-wrap');
+  if (fwrap) fwrap.style.display = type==='teams' ? 'block' : 'none';
+  // Update step count dots
+  const dot3  = document.getElementById('wiz-dot-3');
+  const line2 = document.getElementById('wiz-line-2');
+  if (dot3)  dot3.style.display  = type==='teams' ? 'inline-block' : 'none';
+  if (line2) line2.style.display = type==='teams' ? 'block' : 'none';
+}
+
+function wizSetFmt(fmt) {
+  _wizFmt = fmt;
+  const is4bbb = fmt === '4bbb';
+  const sb = document.getElementById('wiz-fmt-singles');
+  const tb = document.getElementById('wiz-fmt-4bbb');
+  const sl = document.getElementById('wiz-fmt-singles-lbl');
+  const tl = document.getElementById('wiz-fmt-4bbb-lbl');
+  if (sb) sb.className = 'wiz-type-box' + (!is4bbb ? ' active-box' : '');
+  if (tb) tb.className = 'wiz-type-box' + ( is4bbb ? ' active-box' : '');
+  if (sl) sl.style.color = !is4bbb ? 'var(--teal)' : '#888';
+  if (tl) tl.style.color =  is4bbb ? 'var(--teal)' : '#888';
+}
+
+function _wizTotalSteps() { return _wizType === 'teams' ? 3 : 2; }
+
+function _wizMsg(text, type) {
+  const el = document.getElementById('wiz-msg');
+  el.textContent = text;
+  el.style.display = 'block';
+  el.style.background = type==='error' ? 'rgba(255,90,90,.12)' : 'rgba(0,232,187,.12)';
+  el.style.color       = type==='error' ? 'var(--red)' : 'var(--teal)';
+  el.style.border      = type==='error' ? '1px solid rgba(255,90,90,.3)' : '1px solid rgba(0,232,187,.3)';
+}
+
+function _wizRender() {
+  const total = _wizTotalSteps();
+  // Dots
+  for (let i = 1; i <= 3; i++) {
+    const dot = document.getElementById('wiz-dot-'+i);
+    if (!dot) continue;
+    dot.style.display = i <= total ? 'inline-block' : 'none';
+    dot.className = 'wiz-step-dot' + (i < _wizStep ? ' done' : i === _wizStep ? ' active' : '');
+  }
+  // Lines
+  for (let i = 1; i <= 2; i++) {
+    const ln = document.getElementById('wiz-line-'+i);
+    if (!ln) continue;
+    ln.style.display = i < total ? 'block' : 'none';
+    ln.className = 'wiz-step-line' + (i < _wizStep ? ' done' : '');
+  }
+  // Steps
+  ['wiz-step-1','wiz-step-2','wiz-step-3'].forEach((id, idx) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (idx+1 === _wizStep) ? 'block' : 'none';
+  });
+  // Apply current type/fmt to tiles
+  wizSetType(_wizType);
+  wizSetFmt(_wizFmt);
+  // Back button
+  const back = document.getElementById('wiz-back-btn');
+  if (back) back.style.display = _wizStep > 1 ? 'flex' : 'none';
+  // Next button label
+  const next = document.getElementById('wiz-next-btn');
+  if (next) next.textContent = _wizStep === total ? '💾 Save Tournament' : 'Next →';
+  // Step 2 content
+  if (_wizStep === 2) {
+    const sr = document.getElementById('wiz-singles-roster');
+    const tr = document.getElementById('wiz-teams-roster');
+    if (sr) sr.style.display = _wizType === 'singles' ? 'block' : 'none';
+    if (tr) tr.style.display = _wizType === 'teams'   ? 'block' : 'none';
+    const lbl = document.getElementById('wiz-step2-label');
+    const ttl = document.getElementById('wiz-step2-title');
+    if (lbl) lbl.textContent = `STEP 2 OF ${total}`;
+    if (ttl) ttl.textContent = _wizType === 'teams' ? 'Team Rosters' : 'Player Roster';
+  }
+  // Step 3 summary
+  if (_wizStep === 3) {
+    const name = document.getElementById('wiz-name').value.trim() || '—';
+    const t1n  = document.getElementById('wiz-team1-name').value.trim() || 'Team 1';
+    const t2n  = document.getElementById('wiz-team2-name').value.trim() || 'Team 2';
+    const t1p  = document.getElementById('wiz-team1-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    const t2p  = document.getElementById('wiz-team2-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    const fmtLabel = _wizFmt === '4bbb' ? '4BBB Best Ball' : 'Singles Matchplay';
+    const summary = `
+      <div style="margin-bottom:6px"><span style="color:#555">Name:</span> <strong>${name}</strong></div>
+      <div style="margin-bottom:6px"><span style="color:#555">Type:</span> <strong>${_wizType === 'teams' ? 'Teams' : 'Singles'}</strong></div>
+      ${_wizType === 'teams' ? `
+      <div style="margin-bottom:6px"><span style="color:#555">Format:</span> <strong>${fmtLabel}</strong></div>
+      <div style="margin-bottom:6px"><span style="color:var(--teal)">${t1n}</span>: ${t1p.length} players</div>
+      <div><span style="color:var(--red)">${t2n}</span>: ${t2p.length} players</div>
+      ` : `
+      <div><span style="color:#555">Players:</span> <strong>${document.getElementById('wiz-singles-players').value.split('\n').map(s=>s.trim()).filter(Boolean).length} in roster</strong></div>
+      `}`;
+    const el = document.getElementById('wiz-summary');
+    if (el) el.innerHTML = summary;
+  }
+  document.getElementById('wiz-msg').style.display = 'none';
+}
+
+function wizNext() {
+  const total = _wizTotalSteps();
+  // Validate current step
+  if (_wizStep === 1) {
+    const name = document.getElementById('wiz-name').value.trim();
+    if (!name) { _wizMsg('Enter a tournament name.', 'error'); return; }
+  }
+  if (_wizStep === 2) {
+    if (_wizType === 'singles') {
+      const players = document.getElementById('wiz-singles-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
+      if (players.length < 2) { _wizMsg('Add at least 2 players.', 'error'); return; }
+    } else {
+      const t1n = document.getElementById('wiz-team1-name').value.trim();
+      const t2n = document.getElementById('wiz-team2-name').value.trim();
+      const t1p = document.getElementById('wiz-team1-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
+      const t2p = document.getElementById('wiz-team2-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
+      if (!t1n) { _wizMsg('Enter a name for Team 1.', 'error'); return; }
+      if (!t2n) { _wizMsg('Enter a name for Team 2.', 'error'); return; }
+      if (!t1p.length) { _wizMsg('Add at least one player to Team 1.', 'error'); return; }
+      if (!t2p.length) { _wizMsg('Add at least one player to Team 2.', 'error'); return; }
+    }
+  }
+  if (_wizStep === total) {
+    _wizSave();
+    return;
+  }
+  _wizStep++;
+  _wizRender();
+}
+
+function wizBack() {
+  if (_wizStep > 1) { _wizStep--; _wizRender(); }
+}
+
+function _wizSave() {
+  const label = document.getElementById('wiz-name').value.trim();
+  let rec;
+  if (_wizType === 'teams') {
+    const team1name    = document.getElementById('wiz-team1-name').value.trim();
+    const team2name    = document.getElementById('wiz-team2-name').value.trim();
+    const team1players = document.getElementById('wiz-team1-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    const team2players = document.getElementById('wiz-team2-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    rec = { label, type:'teams', matchFmt: _wizFmt,
+      team1:{name:team1name, players:team1players},
+      team2:{name:team2name, players:team2players} };
+  } else {
+    const players = document.getElementById('wiz-singles-players').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    rec = { label, type:'singles', players };
+  }
+  const key = _wizEditKey || label.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'') || ('t_'+Date.now());
+  TOURNAMENT[key] = rec;
+  persistTournaments();
+  // Auto-select the new/edited tournament
+  activeTournament = key;
+  _teamsMatchFmt = _wizFmt;
+  onTournamentSelect(key);
+  renderMatchBanner();
+  _wizMsg('✓ Tournament saved!', 'success');
+  setTimeout(() => {
+    hideWizard();
+    renderTournamentTab();
+  }, 700);
 }
 
 function showTournamentForm(editKey) {
@@ -1509,7 +1918,7 @@ function showTournamentForm(editKey) {
     setTournamentType('singles');
   }
 
-  document.getElementById('add-tournament-btn-wrap').style.display = 'none';
+  /* add-tournament-btn-wrap removed */
   document.getElementById('tournament-actions').style.display = 'none';
   document.getElementById('teams-match-format-wrap').style.display = 'none';
   form.style.display = 'block';
@@ -1519,7 +1928,7 @@ function showTournamentForm(editKey) {
 
 function hideTournamentForm() {
   document.getElementById('tournament-form').style.display = 'none';
-  document.getElementById('add-tournament-btn-wrap').style.display = 'block';
+  /* add-tournament-btn-wrap removed */
   document.getElementById('tournament-form')._editKey = null;
 }
 
@@ -1573,7 +1982,7 @@ function renderTournamentActions(key) {
   const el = document.getElementById('tournament-actions');
   if (!t || !el) return;
   el.style.display = 'block';
-  document.getElementById('add-tournament-btn-wrap').style.display = 'none';
+  /* add-tournament-btn-wrap removed */
   hideClearTournamentsConfirm();
   const typeLabel = t.type === 'teams'
     ? `${t.team1.name} (${t.team1.players.length}) vs ${t.team2.name} (${t.team2.players.length})`
@@ -1610,7 +2019,7 @@ function confirmDeleteTournament(key) {
   document.getElementById('tournament-select').value = '';
   onTournamentSelect('');
   document.getElementById('tournament-actions').style.display = 'none';
-  document.getElementById('add-tournament-btn-wrap').style.display = 'block';
+  /* add-tournament-btn-wrap removed */
   renderTournamentDropdown();
 }
 
@@ -2483,10 +2892,9 @@ function _buildAndStoreResults(tournamentKey) {
 }
 
 function confirmClearFirebase() {
-  const sel = document.getElementById('tr-tournament-select');
-  const key = sel ? sel.value : '';
-  if (!key) { alert('Please select a tournament first.'); return; }
-  const tName = sel.options[sel.selectedIndex].text;
+  const key = activeTournament;
+  if (!key) { alert('No active tournament selected.'); return; }
+  const tName = TOURNAMENT[key]?.label || key;
   if (!confirm(`Clear ALL live Firebase data for:\n\n"${tName}"\n\nThis removes scores and results from the live leaderboard. Local history on this device is not affected.\n\nThis cannot be undone.`)) return;
   if (!window._fbClearTournament) { alert('Firebase not connected. Try again in a moment.'); return; }
   window._fbClearTournament(key, (err) => {
@@ -3594,12 +4002,13 @@ function clearHistory(){
 // ═══════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════
-buildParGrids();       // builds par + SI grids, matchplay display, updateSIDisplay
-renderTournamentDropdown(); // populate tournament dropdown
-// Note: Tournament Results dropdown populated lazily on tab open
-renderCourseDropdown(); // populate dropdown with presets + user courses
+buildParGrids();
+renderTournamentDropdown();
+renderCourseDropdown();
+renderTournamentTab();   // populate new tournament tab list
+renderMatchBanner();     // show active tournament on match tab
 checkCanStart();
-checkForSavedGame(); // show resume modal if a game was in progress
+checkForSavedGame();
 
 // ═══════════════════════════════════════════
 // TOURNAMENT RESULTS CONSOLIDATION
