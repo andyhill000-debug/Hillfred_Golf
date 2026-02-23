@@ -88,10 +88,7 @@
   .hole-si-box{text-align:right;background:#141414;border:2px solid var(--border);border-radius:10px;padding:8px 14px;min-width:72px}
   .hole-si-label{font-size:10px;color:var(--teal);letter-spacing:1.5px;font-weight:700;margin-bottom:2px;text-transform:uppercase}
   .hole-si-val{font-family:'Playfair Display',serif;font-size:34px;font-weight:700;color:var(--text);line-height:1}
-  .calc-box{background:#141414;border:1.5px solid #2e2e2e;border-radius:10px;padding:12px 14px;margin-top:14px;font-size:12px}
   .calc-title{font-size:10px;color:var(--teal);letter-spacing:1.5px;font-weight:700;margin-bottom:8px;text-transform:uppercase}
-  .calc-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #222}
-  .calc-row:last-child{border-bottom:none}
   .calc-label{color:#bbb;font-weight:600}
   .calc-val{font-weight:700;color:var(--text)}
   .calc-pts{color:var(--gold);font-size:14px;font-weight:700}
@@ -3961,104 +3958,19 @@ function renderHoleEntry(){
     }
   }
 
-  // Calculation transparency box
-  let calcHtml='';
-  if(isMatch&&!game.skins&&(h.p1!=null||h.p2!=null)){
-    if(!game.team){
-      const n1=h.p1!=null?h.p1-s1:null,n2=h.p2!=null?h.p2-s2:null;
-      calcHtml=`<div class="calc-box">
-        <div class="calc-title">Matchplay Calculation · SI ${si} · Hole Par ${h.par}</div>
-        <div class="calc-row"><span class="calc-label">${p1.name} — Hcp ${p1.hcp}, base ${Math.round(base)}, diff ${Math.round(p1.hcp)-Math.round(base)}</span><span class="calc-val">${s1} stroke${s1!==1?'s':''}</span></div>
-        <div class="calc-row"><span class="calc-label">${p1.name} gross ${h.p1??'—'} − ${s1} = net</span><span class="calc-val">${n1??'—'}</span></div>
-        <div style="height:5px"></div>
-        <div class="calc-row"><span class="calc-label">${p2.name} — Hcp ${p2.hcp}, base ${Math.round(base)}, diff ${Math.round(p2.hcp)-Math.round(base)}</span><span class="calc-val">${s2} stroke${s2!==1?'s':''}</span></div>
-        <div class="calc-row"><span class="calc-label">${p2.name} gross ${h.p2??'—'} − ${s2} = net</span><span class="calc-val">${n2??'—'}</span></div>
-        <div class="calc-note">Lower net wins the hole. Equal nets = halved.</div>
-      </div>`;
-    } else {
-      const nb=Math.round(base);
-      const n1a=h.p1!=null?h.p1-s1:null,n1b=h.p3!=null?h.p3-s3:null;
-      const n2a=h.p2!=null?h.p2-s2:null,n2b=h.p4!=null?h.p4-s4:null;
-      const best1=Math.min(n1a??99,n1b??99),best2=Math.min(n2a??99,n2b??99);
-      calcHtml=`<div class="calc-box">
-        <div class="calc-title">4BBB Calculation · SI ${si} · Base (lowest hcp of all 4) = ${nb}</div>
-        <div class="calc-row"><span class="calc-label">${p1.name} (Hcp ${p1.hcp}): ${h.p1??'—'} − ${s1} = net <strong>${n1a??'—'}</strong></span><span class="calc-val" style="color:var(--teal)">Team 1</span></div>
-        <div class="calc-row"><span class="calc-label">${p3.name} (Hcp ${p3.hcp}): ${h.p3??'—'} − ${s3} = net <strong>${n1b??'—'}</strong></span><span class="calc-val" style="color:var(--teal)">Team 1</span></div>
-        <div class="calc-row"><span class="calc-label" style="color:var(--teal)">Team 1 best net</span><span class="calc-val" style="color:var(--teal)">${best1<99?best1:'—'}</span></div>
-        <div style="height:4px"></div>
-        <div class="calc-row"><span class="calc-label">${p2.name} (Hcp ${p2.hcp}): ${h.p2??'—'} − ${s2} = net <strong>${n2a??'—'}</strong></span><span class="calc-val" style="color:var(--red)">Team 2</span></div>
-        <div class="calc-row"><span class="calc-label">${p4.name} (Hcp ${p4.hcp}): ${h.p4??'—'} − ${s4} = net <strong>${n2b??'—'}</strong></span><span class="calc-val" style="color:var(--red)">Team 2</span></div>
-        <div class="calc-row"><span class="calc-label" style="color:var(--red)">Team 2 best net</span><span class="calc-val" style="color:var(--red)">${best2<99?best2:'—'}</span></div>
-        <div class="calc-note">Each player's strokes = their hcp minus ${nb} (lowest hcp), allocated by SI. Team plays best net.</div>
-      </div>`;
-    }
-  } else if(isStab&&(h.p1!=null||h.p2!=null)){
-    const stabRow=(player,sb)=>{
-      if(!sb) return `<div class="calc-row"><span class="calc-label">${player.name}</span><span class="calc-val">—</span></div>`;
-      const ds=sb.diff<0?sb.diff:'+'+sb.diff;
-      const ptCol=sb.points>=3?'var(--teal)':sb.points===0?'var(--red)':'var(--gold)';
-      return `<div class="calc-row">
-        <span class="calc-label">${player.name} (Hcp ${player.hcp}): ${sb.gross} gross − ${sb.strokes} strk = net ${sb.net} (${ds} par)</span>
-        <span class="calc-pts" style="color:${ptCol}">${sb.points}pt</span>
-      </div>`;
-    }
-    calcHtml=`<div class="calc-box">
-      <div class="calc-title">Stableford Calculation · SI ${si} · Par ${h.par}</div>
-      ${stabRow(p1,sb1)}${stabRow(p2,sb2)}
-      ${(game.team||(game.fourPlayer&&_pc_sb>=3))?stabRow(p3,sb3):''}
-      ${(game.team||(game.fourPlayer&&_pc_sb>=4))?stabRow(p4,sb4):''}
-      <div class="calc-note">Points: Albatross=5 · Eagle=4 · Birdie=3 · Par=2 · Bogey=1 · Double bogey+=0</div>
-    </div>`;
-  }
+  const _holeComplete = game.team
+    ? (h.p1!=null && h.p2!=null && h.p3!=null && h.p4!=null)
+    : game.fourPlayer
+      ? (h.p1!=null && h.p2!=null && ((game.playerCount||2)<3 || h.p3!=null) && ((game.playerCount||2)<4 || h.p4!=null))
+      : (h.p1!=null && h.p2!=null);
 
-
-
-  // Match result badge — suppress for skins multi-player (1v1 result is meaningless)
-  let badgeHtml='';
-  if(isMatch && !game.skins){
-    const res=game.team
-      ?matchHole4BBB(h.p1,h.p3,h.p2,h.p4,p1.hcp,p3.hcp,p2.hcp,p4.hcp,si)
-      :matchHole1v1(h.p1,h.p2,p1.hcp,p2.hcp,si);
-
-    // Match 1 badge
-    const _m1label = game.team?(game.tournament&&game.tournament.team1name||'Team 1'):p1.name;
-    const _m2label = game.team?(game.tournament&&game.tournament.team2name||'Team 2'):p2.name;
-    let badge1='';
-    if(res===1)  badge1=`<div class="hole-result-badge badge-win" style="margin-bottom:6px">▲ <span style="color:var(--teal)">${_m1label}</span>${game.fourPlayer?' (M1)':''} wins this hole</div>`;
-    if(res===-1) badge1=`<div class="hole-result-badge badge-lose" style="margin-bottom:6px">▼ <span style="color:var(--red)">${_m2label}</span>${game.fourPlayer?' (M1)':''} wins this hole</div>`;
-    if(res===0)  badge1=`<div class="hole-result-badge badge-halve" style="margin-bottom:6px">● Hole Halved${game.fourPlayer?' — Match 1':''}</div>`;
-    badgeHtml = badge1;
-
-    // Match 2 badge — only for fourPlayer non-team mode
-    if(game.fourPlayer && !game.team && (game.playerCount||2)>=4){
-      const res2=matchHole1v1(h.p3,h.p4,p3.hcp,p4.hcp,si);
-      let badge2='';
-      if(res2===1)  badge2=`<div class="hole-result-badge badge-win">▲ <span style="color:var(--teal)">${p3.name}</span> (M2) wins this hole</div>`;
-      if(res2===-1) badge2=`<div class="hole-result-badge badge-lose">▼ <span style="color:var(--red)">${p4.name}</span> (M2) wins this hole</div>`;
-      if(res2===0)  badge2=`<div class="hole-result-badge badge-halve">● Hole Halved — Match 2</div>`;
-      badgeHtml += badge2;
-    }
-  }
-
-  // Only show Next Hole once every active player has a score on this hole
-  const _pc=game.playerCount||2;
-  const _activeFields=['p1','p2',...(game.team||(_pc>=3)?['p3']:[]),...(game.team||(_pc>=4)?['p4']:[])];
-  const _holeComplete=_activeFields.every(f=>h[f]!=null);
-
-  document.getElementById('hole-entry').innerHTML=`
-    <div class="card animate-in">
-      <div class="hole-header">
-        <div>
-          <div class="hole-number">Hole ${h.hole}</div>
-          <div class="hole-par">Par ${h.par} · ${h.hole<=9?'Front 9':'Back 9'}</div>
-        </div>
-        <div class="hole-si-box">
-          <div class="hole-si-label">STROKE INDEX</div>
-          <div class="hole-si-val">${si}</div>
-        </div>
+  document.getElementById('hole-entry').innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;color:#ccc">Hole ${h.hole}</div>
+        <div style="font-size:12px;color:#888">Par ${h.par} · SI ${si}</div>
       </div>
       ${gridHtml}
-      ${calcHtml}
       ${badgeHtml}
       ${skinsHoleResult()}
       <div style="display:flex;gap:10px;margin-top:16px">
