@@ -1451,11 +1451,11 @@ function matchHole1v1(gross1, gross2, hcp1, hcp2, si1, si2, si3) {
  * so the other partner's score still counts for the team.
  */
 function matchHole4BBB(g1a, g1b, g2a, g2b, hcp1a, hcp1b, hcp2a, hcp2b, si1, si2, si3) {
-  const hasT1 = g1a != null || g1b != null;
-  const hasT2 = g2a != null || g2b != null;
-  if (!hasT1 || !hasT2) return null;
+  // All four players must have entered a score before we compute the hole result.
+  // This prevents a premature match-won detection when only one partner has scored.
+  if (g1a == null || g1b == null || g2a == null || g2b == null) return null;
   const base = Math.min(hcp1a, hcp1b, hcp2a, hcp2b);
-  const net = (g, h) => (g != null && g !== 'P') ? g - strokesOnHole(h, base, si1, si2, si3) : 99;
+  const net = (g, h) => (g !== 'P') ? g - strokesOnHole(h, base, si1, si2, si3) : 99;
   const best1 = Math.min(net(g1a,hcp1a), net(g1b,hcp1b));
   const best2 = Math.min(net(g2a,hcp2a), net(g2b,hcp2b));
   return best1 < best2 ? 1 : best2 < best1 ? -1 : 0;
@@ -3947,20 +3947,18 @@ function renderPlay(){
     _mpStatus2=matchStatus(res2);
   }
   const _gameWon=_mpStatus&&_mpStatus.closed&&(!_mpStatus2||_mpStatus2.closed);
-  // For stroke/stableford: all 18 holes need ALL active players scored, not just p1
+  // For stroke/stableford AND matchplay: all 18 holes need ALL active players scored
   const _pc=game.playerCount||2;
   const _activeFields=['p1','p2',...(_pc>=3?['p3']:[]),...(_pc>=4?['p4']:[])];
-  const _all18 = game.mode==='matchplay'
-    ? game.holes.filter(h=>h.p1!=null).length===18
-    : game.holes.every(h=>_activeFields.every(f=>h[f]!=null));
-  // Current hole must be fully complete before showing finish bar
+  const _all18 = game.holes.every(h=>_activeFields.every(f=>h[f]!=null));
+  // Current hole must be fully complete before showing finish bar — guards both paths
   const _curH = game.holes[activeHole-1];
   const _curHoleComplete = game.team
     ? (_curH.p1!=null && _curH.p2!=null && _curH.p3!=null && _curH.p4!=null)
     : game.fourPlayer
       ? (_curH.p1!=null && _curH.p2!=null && (_pc<3||_curH.p3!=null) && (_pc<4||_curH.p4!=null))
       : (_curH.p1!=null && _curH.p2!=null);
-  const _showFinish=(_gameWon && _curHoleComplete)||_all18;
+  const _showFinish = _curHoleComplete && (_gameWon || _all18);
   document.getElementById('finish-bar').classList.toggle('visible',_showFinish);
   if(_showFinish) renderFinishBar(_mpStatus,_all18);
 }
