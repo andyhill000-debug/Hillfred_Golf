@@ -1603,49 +1603,58 @@ function _buildGameList() {
     const t1 = meta.team1name || 'Team 1';
     const t2 = meta.team2name || 'Team 2';
     const mode = meta.mode || 'stroke';
-    const isTeam = meta.team || false;
+    const isTeam = meta.team || false;  // true for 4BBB team games
 
-    if (isTeam || meta.playerCount >= 4) {
-      // Group by matchIndex
-      const m1Players = players.filter(([,pd]) => (pd.matchIndex||1) === 1);
-      const m2Players = players.filter(([,pd]) => (pd.matchIndex||1) === 2);
-      [[m1Players, 1], [m2Players, 2]].forEach(([grp, mi]) => {
-        if (!grp.length) return;
-        const t1Names = isTeam ? grp.filter(([,pd])=>pd['h1']&&pd['h1'].teamName===t1||grp.indexOf([...grp].find(([,p])=>p.matchIndex===mi))>-1).slice(0,2).map(([n])=>n.replace(/_/g,' ')).join(' & ') : grp.slice(0,1).map(([n])=>n.replace(/_/g,' ')).join('');
-        const t2Names = isTeam ? grp.slice(2).map(([n])=>n.replace(/_/g,' ')).join(' & ') : grp.slice(1).map(([n])=>n.replace(/_/g,' ')).join('');
-        // Get player names by team slot from hole data
-        const t1ps = [], t2ps = [];
-        grp.forEach(([name, pd]) => {
-          const h1d = pd.h1 || pd.h2 || pd.h3 || {};
-          if (h1d.teamName === t1 || h1d.teamName === t2) {
-            if (h1d.teamName === t1) t1ps.push(name.replace(/_/g,' '));
-            else t2ps.push(name.replace(/_/g,' '));
-          } else { (t1ps.length<=t2ps.length?t1ps:t2ps).push(name.replace(/_/g,' ')); }
-        });
-        games.push({
-          key: `${gameId}_m${mi}`,
-          gameId, matchIndex: mi,
-          label: `${t1ps.join(' & ')||t1} vs ${t2ps.join(' & ')||t2}${isTeam&&mi>1?' (M2)':''}`,
-          status: meta.status || 'active',
-          t1name: t1, t2name: t2,
-          players: grp, mode, isTeam,
-          meta
-        });
+    if (isTeam) {
+      // ── 4BBB team game: all 4 players = ONE match, T1=p1+p3, T2=p2+p4 ──────
+      // teamName field set per player tells us which side they're on
+      const t1ps = [], t2ps = [];
+      players.forEach(([name, pd]) => {
+        const sample = pd.h1 || pd.h2 || pd.h3 || pd.h4 || {};
+        if (sample.teamName === t2) t2ps.push(name.replace(/_/g,' '));
+        else t1ps.push(name.replace(/_/g,' ')); // default to T1 if unset
       });
-    } else {
-      const t1ps = players.filter(([,pd])=>(pd.h1||pd.h2||{}).teamName===t1||(pd.h1||pd.h2||{}).teamName==null).slice(0,1);
-      const t2ps = players.filter(([,pd])=>(pd.h1||pd.h2||{}).teamName===t2).slice(0,1);
-      const allPs = players;
+      const label = `${t1ps.join(' & ')||t1}  vs  ${t2ps.join(' & ')||t2}`;
       games.push({
-        key: `${gameId}_m1`,
-        gameId, matchIndex: 1,
-        label: `${allPs[0]?.[0]?.replace(/_/g,' ')||'P1'} vs ${allPs[1]?.[0]?.replace(/_/g,' ')||'P2'}`,
+        key: `${gameId}_4bbb`,
+        gameId, matchIndex: 1, isTeam: true,
+        label, status: meta.status || 'active',
+        t1name: t1, t2name: t2,
+        t1ps, t2ps,
+        players, mode, meta
+      });
+
+    } else if (!isTeam && (meta.playerCount >= 4)) {
+      // ── Dual singles (4-player non-team): two independent matches ───────────
+      const m1 = players.filter(([,pd]) => (pd.matchIndex||1) === 1);
+      const m2 = players.filter(([,pd]) => pd.matchIndex === 2);
+      if (m1.length) games.push({
+        key: `${gameId}_m1`, gameId, matchIndex: 1, isTeam: false,
+        label: `${m1[0]?.[0]?.replace(/_/g,' ')||'P1'} vs ${m1[1]?.[0]?.replace(/_/g,' ')||'P2'}`,
         status: meta.status || 'active',
         t1name: t1, t2name: t2,
-        players, mode, isTeam, meta
+        players: m1, mode, meta
+      });
+      if (m2.length) games.push({
+        key: `${gameId}_m2`, gameId, matchIndex: 2, isTeam: false,
+        label: `${m2[0]?.[0]?.replace(/_/g,' ')||'P3'} vs ${m2[1]?.[0]?.replace(/_/g,' ')||'P4'} (M2)`,
+        status: meta.status || 'active',
+        t1name: t1, t2name: t2,
+        players: m2, mode, meta
+      });
+
+    } else {
+      // ── Standard 1v1 singles ─────────────────────────────────────────────────
+      games.push({
+        key: `${gameId}_m1`, gameId, matchIndex: 1, isTeam: false,
+        label: `${players[0]?.[0]?.replace(/_/g,' ')||'P1'} vs ${players[1]?.[0]?.replace(/_/g,' ')||'P2'}`,
+        status: meta.status || 'active',
+        t1name: t1, t2name: t2,
+        players, mode, meta
       });
     }
   });
+
   games.sort((a,b) => {
     if (a.status==='live'&&b.status!=='live') return -1;
     if (b.status==='live'&&a.status!=='live') return 1;
@@ -1668,120 +1677,120 @@ function _renderMatchGraph(key) {
   const g = games.find(x => x.key === key);
   if (!g) return;
 
-  // Build hole-by-hole worm data from Firebase h1..h18
-  // Use the first T1 player's mpLeading to track match position
+  // ── Find reference player ──────────────────────────────────────────────────
+  // For 4BBB: p1+p3 = T1, p2+p4 = T2. All four players share the SAME 4BBB
+  // match status. We read from a T1 player so UP = T1 winning (positive worm).
+  // teamName field stored per hole tells us which side each player is on.
+  // For singles: players[0] = T1 side, players[1] = T2 side.
   const t1Players = [], t2Players = [];
   g.players.forEach(([name, pd]) => {
-    const sample = pd.h1 || pd.h2 || pd.h3 || pd.h4 || {};
-    if (sample.teamName === g.t1name) t1Players.push([name, pd]);
-    else t2Players.push([name, pd]);
+    // Check first available hole data for teamName
+    const sample = pd.h1 || pd.h2 || pd.h3 || pd.h4 || pd.h5 || {};
+    if (sample.teamName && sample.teamName === g.t2name) t2Players.push([name, pd]);
+    else t1Players.push([name, pd]); // T1 or unset → treat as T1
   });
-  // Fall back if teamName not set
-  if (!t1Players.length) { t1Players.push(g.players[0]); }
-  if (!t2Players.length && g.players.length > 1) { t2Players.push(g.players[1]); }
+  if (!t1Players.length) t1Players.push(g.players[0]);
+  if (!t2Players.length && g.players.length > 1) t2Players.push(g.players[1]);
 
-  const refPlayer = t1Players[0]?.[1];
+  // Use the T1 player with the most holes played as reference (most complete data)
+  t1Players.sort((a, b) => (b[1].holesPlayed||0) - (a[1].holesPlayed||0));
+  const refPlayer   = t1Players[0]?.[1];
   const holesPlayed = refPlayer?.holesPlayed || 0;
 
-  // Reconstruct worm: position = mpLeading from T1 player's perspective
-  // mpLeading: 1 = T1 winning, 2 = T2 winning, 0 = AS
-  const wormData = []; // +ve = T1 leading, -ve = T2 leading, 0 = AS
-  const holeResults = []; // 'W','L','H',null
-  const holePars = [];
+  // ── Build hole-by-hole worm from mpStatus of the T1 reference player ────────
+  // mpStatus is written from each player's own perspective:
+  //   T1 player: "2 UP" = T1 leads by 2, "3 DOWN" = T2 leads by 3
+  //   (same convention for both 4BBB and singles)
+  const wormData    = []; // +ve = T1 leading, -ve = T2 leading, 0 = A/S
+  const holeResults = []; // 'W' / 'L' / 'H' / null per hole
 
   for (let h = 1; h <= 18; h++) {
-    if (h > holesPlayed) {
-      wormData.push(null);
-      holeResults.push(null);
-      holePars.push(null);
-      continue;
-    }
-    const hd = refPlayer?.[`h${h}`] || {};
-    // Derive position from mpStatus string: "2 UP" → +2, "3 DOWN" → -3, "All Square" → 0
-    let pos = 0;
-    const st = hd.mpStatus || '';
-    if (st.includes('All Square') || st === '') { pos = 0; }
-    else if (st.includes(' UP')) { pos = parseInt(st); }
-    else if (st.includes(' DOWN')) { pos = -parseInt(st); }
-    else if (st.startsWith('W ')) { pos = hd.mpLeading === 1 ? 99 : -99; } // closed
-    else if (st.startsWith('L ')) { pos = hd.mpLeading === 2 ? -99 : 99; }
+    if (h > holesPlayed) { wormData.push(null); holeResults.push(null); continue; }
+    const hd  = refPlayer[`h${h}`] || {};
+    const st  = hd.mpStatus || '';
+    let pos   = 0;
+    if      (st.includes('All Square') || st === '') pos =  0;
+    else if (st.includes(' UP'))                     pos =  parseInt(st, 10);
+    else if (st.includes(' DOWN'))                   pos = -parseInt(st, 10);
+    else if (st.startsWith('W '))                    pos =  99;  // closed T1 won
+    else if (st.startsWith('L '))                    pos = -99;  // closed T2 won
 
-    // Hole result: compare position to previous
-    const prev = wormData[h-2] ?? 0;
-    const prevPos = prev === null ? 0 : (prev === 99 ? 999 : prev === -99 ? -999 : prev);
-    const curPos = pos === 99 ? 999 : pos === -99 ? -999 : pos;
-    if (curPos > prevPos) holeResults.push('W');
-    else if (curPos < prevPos) holeResults.push('L');
-    else holeResults.push('H');
-
+    // Hole result: direction the worm moved this hole
+    const prevRaw = wormData[h - 2] ?? 0;
+    const prev = prevRaw === null ? 0 : prevRaw >=  99 ? 999 : prevRaw <= -99 ? -999 : prevRaw;
+    const cur  = pos    >=  99 ? 999 : pos    <= -99 ? -999 : pos;
+    holeResults.push(cur > prev ? 'W' : cur < prev ? 'L' : 'H');
     wormData.push(pos);
-    holePars.push(hd.par || null);
   }
 
-  // Clamp worm for display (-5 to +5 shown, closed matches stop at last real value)
-  const displayData = wormData.map(v => {
-    if (v === null) return null;
-    if (v === 99 || v === -99) return null; // closed — stop line
-    return Math.max(-6, Math.min(6, v));
-  });
-  // Find last real data point
+  // Clamp display values; stop line at match close
+  const displayData = wormData.map(v =>
+    v === null || v >= 99 || v <= -99 ? null : Math.max(-6, Math.min(6, v))
+  );
   let lastRealIdx = -1;
-  wormData.forEach((v, i) => { if (v !== null && v !== 99 && v !== -99) lastRealIdx = i; });
+  wormData.forEach((v, i) => { if (v !== null && v < 99 && v > -99) lastRealIdx = i; });
   const playedDisplay = lastRealIdx + 1;
 
-  // Final result label
-  const lastVal = wormData[lastRealIdx] ?? 0;
+  // ── Result badge ──────────────────────────────────────────────────────────
+  const lastVal     = lastRealIdx >= 0 ? (wormData[lastRealIdx] ?? 0) : 0;
   const finalStatus = refPlayer?.[`h${holesPlayed}`]?.mpStatus || '';
+  const isLive      = g.status === 'live' || g.status === 'active';
   let resultLabel = '', resultClass = 'done';
-  if (g.status === 'live' || g.status === 'active') {
+  if (isLive) {
     resultClass = 'live';
     resultLabel = finalStatus || 'Live';
   } else if (finalStatus.startsWith('W ')) {
-    resultLabel = `${g.t1name} ${finalStatus.replace('W ','')}`;
-    resultClass = 't1win';
+    resultLabel = `${g.t1name} ${finalStatus.replace('W ', '')}`; resultClass = 't1win';
   } else if (finalStatus.startsWith('L ')) {
-    resultLabel = `${g.t2name} ${finalStatus.replace('L ','')}`;
-    resultClass = 't2win';
+    resultLabel = `${g.t2name} ${finalStatus.replace('L ', '')}`; resultClass = 't2win';
   } else if (finalStatus.includes('Halved') || finalStatus.includes('All Square')) {
-    resultLabel = 'Halved';
-    resultClass = 'halved';
+    resultLabel = 'Halved'; resultClass = 'halved';
   } else {
     resultLabel = finalStatus || '—';
   }
 
-  const t1Names = t1Players.map(([n])=>n.replace(/_/g,' ')).join(' & ') || g.t1name;
-  const t2Names = t2Players.map(([n])=>n.replace(/_/g,' ')).join(' & ') || g.t2name;
-  const modeLbl = g.isTeam ? '4BBB Matchplay' : 'Singles Matchplay';
+  // ── Display names ─────────────────────────────────────────────────────────
+  // For 4BBB use pre-built t1ps/t2ps from _buildGameList; for singles derive from players
+  const t1Names = (g.t1ps && g.t1ps.length)
+    ? g.t1ps.join(' & ')
+    : t1Players.map(([n]) => n.replace(/_/g,' ')).join(' & ') || g.t1name;
+  const t2Names = (g.t2ps && g.t2ps.length)
+    ? g.t2ps.join(' & ')
+    : t2Players.map(([n]) => n.replace(/_/g,' ')).join(' & ') || g.t2name;
+  const modeLbl   = g.isTeam ? '4BBB Matchplay' : 'Singles Matchplay';
+  const borderCol = lastVal > 0 ? 'var(--teal)' : lastVal < 0 ? 'var(--red)' : 'var(--gold)';
 
-  // Generate SVG worm graph
-  const svgWorm = _buildWormSVG(displayData.slice(0, playedDisplay), holeResults.slice(0, playedDisplay), g.status === 'live' || g.status === 'active');
+  const svgWorm   = _buildWormSVG(
+    displayData.slice(0, playedDisplay),
+    holeResults.slice(0, playedDisplay),
+    isLive
+  );
 
-  // Hole result strip
+  // Dynamic legend labels (team names instead of hardcoded ROW/AUS)
   const stripHtml = holeResults.map((res, i) => {
     const played = res !== null;
-    const col = res === 'W' ? 'var(--teal)' : res === 'L' ? 'var(--red)' : res === 'H' ? 'var(--gold)' : '#111';
-    const txtCol = played ? '#000' : '#222';
-    return `<div class="mg-hole-dot" style="background:${col};border-color:${played?col:'#1e1e1e'};opacity:${played?0.85:0.3};color:${txtCol}">${i+1}</div>`;
+    const col = res==='W'?'var(--teal)':res==='L'?'var(--red)':res==='H'?'var(--gold)':'#111';
+    return `<div class="mg-hole-dot" style="background:${col};border-color:${played?col:'#1e1e1e'};opacity:${played?0.85:0.3};color:${played?'#000':'#222'}">${i+1}</div>`;
   }).join('');
 
   document.getElementById('mg-content').innerHTML = `
     <div class="mg-card">
-      <div class="mg-card-header" style="border-left:4px solid ${lastVal>0?'var(--teal)':lastVal<0?'var(--red)':'var(--gold)'}">
+      <div class="mg-card-header" style="border-left:4px solid ${borderCol}">
         <div class="mg-matchlabel">${modeLbl} · ${g.t1name} vs ${g.t2name}</div>
         <div class="mg-players">
           <span class="mg-p1">${t1Names}</span>
           <span class="mg-vs">vs</span>
           <span class="mg-p2">${t2Names}</span>
-          <span class="mg-badge ${resultClass}" style="margin-left:auto">${g.status==='live'?'<span style="font-size:9px">● </span>':''}${resultLabel}</span>
+          <span class="mg-badge ${resultClass}" style="margin-left:auto">${isLive?'<span style="font-size:9px">● </span>':''}${resultLabel}</span>
         </div>
-        <div style="font-size:10px;color:#444;margin-top:6px">Thru ${playedDisplay} holes${g.status!=='live'&&g.status!=='active'?' · Final':''}</div>
+        <div style="font-size:10px;color:#444;margin-top:6px">Thru ${playedDisplay} holes${!isLive?' · Final':''}</div>
       </div>
       <div class="mg-graph-area">${svgWorm}</div>
-      <div style="padding:4px 16px 8px;font-size:10px;color:#555">Worm graph — tracks match position hole by hole  ·  hover for details</div>
+      <div style="padding:4px 16px 8px;font-size:10px;color:#555">Worm graph — tracks match position hole by hole. ↑ ${g.t1name} leading · ↓ ${g.t2name} leading</div>
       <div class="mg-hole-strip">${stripHtml}</div>
       <div class="mg-legend">
-        <span><span class="mg-leg-dot" style="background:var(--teal)"></span>ROW wins hole</span>
-        <span><span class="mg-leg-dot" style="background:var(--red)"></span>AUS wins hole</span>
+        <span><span class="mg-leg-dot" style="background:var(--teal)"></span>${g.t1name} wins hole</span>
+        <span><span class="mg-leg-dot" style="background:var(--red)"></span>${g.t2name} wins hole</span>
         <span><span class="mg-leg-dot" style="background:var(--gold)"></span>Halved</span>
         <span><span class="mg-leg-dot" style="background:#222;border:1px solid #333;display:inline-block"></span>Not played</span>
       </div>
