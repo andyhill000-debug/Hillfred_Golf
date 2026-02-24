@@ -1054,6 +1054,19 @@ function computeTeamScores(entries) {
     });
   });
 
+  // Sort: live matches first (most holes played → top), finished last
+  matchRows.sort((a, b) => {
+    const aLive = a.status !== 'finished';
+    const bLive = b.status !== 'finished';
+    if (aLive && !bLive) return -1;   // live before finished
+    if (!aLive && bLive) return 1;
+    if (aLive && bLive)  return b.hp - a.hp;  // live: most holes played first
+    return b.hp - a.hp;  // finished: most holes played first (tiebreak by progress)
+  });
+
+  // Re-number after sort
+  matchRows.forEach((m, i) => { m.matchNum = i + 1; });
+
   return { t1name, t2name, t1pts, t2pts, halved, matchRows, mode, isStab, isMatch };
 }
 
@@ -1632,7 +1645,7 @@ function _buildGameList() {
       games.push({
         key: `${gameId}_4bbb`,
         gameId, matchIndex: 1, isTeam: true,
-        label, status: meta.status || 'active',
+        label, status: _normStatus(meta.status),
         t1name: t1, t2name: t2,
         t1ps, t2ps,
         players, mode, meta
@@ -1645,14 +1658,14 @@ function _buildGameList() {
       if (m1.length) games.push({
         key: `${gameId}_m1`, gameId, matchIndex: 1, isTeam: false,
         label: `${m1[0]?.[0]?.replace(/_/g,' ')||'P1'} vs ${m1[1]?.[0]?.replace(/_/g,' ')||'P2'}`,
-        status: meta.status || 'active',
+        status: _normStatus(meta.status),
         t1name: t1, t2name: t2,
         players: m1, mode, meta
       });
       if (m2.length) games.push({
         key: `${gameId}_m2`, gameId, matchIndex: 2, isTeam: false,
         label: `${m2[0]?.[0]?.replace(/_/g,' ')||'P3'} vs ${m2[1]?.[0]?.replace(/_/g,' ')||'P4'} (M2)`,
-        status: meta.status || 'active',
+        status: _normStatus(meta.status),
         t1name: t1, t2name: t2,
         players: m2, mode, meta
       });
@@ -1662,7 +1675,7 @@ function _buildGameList() {
       games.push({
         key: `${gameId}_m1`, gameId, matchIndex: 1, isTeam: false,
         label: `${players[0]?.[0]?.replace(/_/g,' ')||'P1'} vs ${players[1]?.[0]?.replace(/_/g,' ')||'P2'}`,
-        status: meta.status || 'active',
+        status: _normStatus(meta.status),
         t1name: t1, t2name: t2,
         players, mode, meta
       });
@@ -1670,12 +1683,15 @@ function _buildGameList() {
   });
 
   games.sort((a,b) => {
-    if (a.status==='live'&&b.status!=='live') return -1;
-    if (b.status==='live'&&a.status!=='live') return 1;
+    if (a.status==='live' && b.status!=='live') return -1;
+    if (b.status==='live' && a.status!=='live') return 1;
     return a.label.localeCompare(b.label);
   });
   return games;
 }
+
+// Normalise Firebase status: 'active' → 'live', anything else → 'finished'
+function _normStatus(s) { return (s === 'finished') ? 'finished' : 'live'; }
 
 window.onMatchSelect = function(key) {
   _selectedMatchKey = key;
