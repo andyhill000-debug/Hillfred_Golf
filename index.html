@@ -1790,6 +1790,12 @@ function onTournamentSelect(val) {
     if (t.type === 'teams' && gameMode !== 'matchplay') setMode('matchplay');
     else if (t.type === 'singles' && gameMode === null) setMode('matchplay');
 
+    // Auto-load the pre-set course if the tournament specifies one
+    if (t.sggCourse) {
+      const courseIdx = savedCourses.findIndex(c => c.name === t.sggCourse);
+      if (courseIdx >= 0) loadCourse(courseIdx);
+    }
+
     if (t.type === 'teams') {
       // Apply team colours to card labels
       const t1cl = _g('t1-card-label'), t2cl = _g('t2-card-label');
