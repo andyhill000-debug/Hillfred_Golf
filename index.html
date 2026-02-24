@@ -2023,37 +2023,32 @@ function _syncMatchFmtTiles() {
 let _sggUnsub1 = null, _sggUnsub2 = null;
 let _sggScores1 = {}, _sggScores2 = {};
 
-function _sggTallyFirebase(scores, is4bbb) {
+function _sggTallyFirebase(scores) {
   let row = 0, aus = 0, played = 0;
-  Object.values(scores).forEach(game => {
-    const meta = game._meta;
+  Object.values(scores).forEach(gd => {
+    const meta = gd._meta;
     if (!meta || meta.status !== 'finished') return;
-    // Collect player data from holes
-    const players = {};
-    Object.entries(game).forEach(([pName, pData]) => {
-      if (pName === '_meta') return;
-      players[pName] = pData;
+    const players = Object.entries(gd).filter(([k]) => k !== '_meta');
+    if (!players.length) return;
+    // Read mpLeading from last scored hole — same logic as leaderboard
+    let leading = 0;
+    players.forEach(([, pd]) => {
+      const hp = pd.holesPlayed || 0;
+      if (hp > 0) {
+        const last = pd[`h${hp}`] || {};
+        if (last.mpLeading !== undefined && leading === 0) leading = last.mpLeading || 0;
+      }
     });
-    const pNames = Object.keys(players);
-    if (pNames.length < 2) return;
-    // Reconstruct 18-hole arrays from h1..h18
-    const getHoles = (pData) => Array.from({length:18}, (_,i) => {
-      const hd = pData['h'+(i+1)];
-      return hd ? { gross: hd.gross, net: hd.net } : null;
-    });
-    // Determine winner from mpLeading on last hole
-    let winner = 0;
-    const lastHole = pNames.map(n => {
-      const pd = players[n];
-      for(let h=18;h>=1;h--){ if(pd['h'+h]) return pd['h'+h]; }
-      return null;
-    }).find(h=>h!=null);
-    if (lastHole && lastHole.mpLeading != null) {
-      winner = lastHole.mpLeading; // 1=team1(ROW), 2=team2(AUS), 0=halved
-    }
-    if (winner === 1)      { row += 1; played++; }
-    else if (winner === 2) { aus += 1; played++; }
-    else                   { row += 0.5; aus += 0.5; played++; }
+    // Check mpStatus for halve — same as leaderboard
+    const anyStatus = players.map(([, pd]) => {
+      const hp = pd.holesPlayed || 0;
+      return hp > 0 ? (pd[`h${hp}`] || {}).mpStatus || '' : '';
+    }).join(' ');
+    const halved = anyStatus.includes('All Square') || anyStatus.includes('Halved');
+    if (halved && leading === 0) { row += 0.5; aus += 0.5; played++; }
+    else if (leading === 1)      { row += 1; played++; }
+    else if (leading === 2)      { aus += 1; played++; }
+    else if (players.some(([, pd]) => (pd.holesPlayed || 0) > 0)) played++;
   });
   return { row, aus, played };
 }
@@ -2061,8 +2056,8 @@ function _sggTallyFirebase(scores, is4bbb) {
 function _sggRenderScores() {
   const el = document.getElementById('sgg-scoreboard');
   if (!el) return;
-  const d1t = _sggTallyFirebase(_sggScores1, true);
-  const d2t = _sggTallyFirebase(_sggScores2, false);
+  const d1t = _sggTallyFirebase(_sggScores1);
+  const d2t = _sggTallyFirebase(_sggScores2);
   const rowTotal = d1t.row + d2t.row;
   const ausTotal = d1t.aus + d2t.aus;
   const totalPlayed = d1t.played + d2t.played;
