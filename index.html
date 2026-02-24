@@ -4009,6 +4009,16 @@ function renderDots(results, rawResults){
     btn.onclick=()=>{activeHole=h.hole;renderPlay();};
     el.appendChild(btn);
   });
+
+  // Auto-scroll the active hole tile into the centre of the strip
+  const activeBtn = el.querySelector('.hole-dot.active');
+  if(activeBtn){
+    const strip = el.closest('.hole-selector') || el.parentElement;
+    if(strip){
+      const targetScroll = activeBtn.offsetLeft - (strip.clientWidth / 2) + (activeBtn.offsetWidth / 2);
+      strip.scrollTo({ left: Math.max(0, targetScroll), behavior: 'smooth' });
+    }
+  }
 }
 
 // ── Hole entry card ────────────────────────
