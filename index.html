@@ -1971,11 +1971,25 @@ function renderMatchBanner() {
       isTeams ? `Teams · ${_teamsMatchFmt === '4bbb' ? '4BBB' : 'Singles Matchplay'}` : 'Singles Tournament';
     banner.style.display = 'block';
     if (fmtRow) fmtRow.style.display = isTeams ? 'block' : 'none';
+    // Hide 3-4 player toggle when a teams tournament is active — irrelevant and confusing
+    const fpBox = document.getElementById('fourplayer-box');
+    if (fpBox) fpBox.style.display = isTeams ? 'none' : '';
+    // For 4BBB teams, ensure fourPlayer is off (it's handled via teamPlay instead)
+    if (isTeams && _teamsMatchFmt === '4bbb' && fourPlayer) {
+      fourPlayer = false;
+      const tog = document.getElementById('fourplayer-toggle');
+      const lbl = document.getElementById('fourplayer-label');
+      if (tog) tog.classList.remove('on');
+      if (lbl) lbl.textContent = 'Off';
+    }
     // Sync the format tiles in match tab
     if (isTeams) _syncMatchFmtTiles();
   } else {
     banner.style.display = 'none';
     if (fmtRow) fmtRow.style.display = 'none';
+    // Restore 3-4 player toggle when no tournament active
+    const fpBox = document.getElementById('fourplayer-box');
+    if (fpBox) fpBox.style.display = '';
   }
 }
 
