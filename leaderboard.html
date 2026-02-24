@@ -1952,14 +1952,38 @@ function _updateCountdown() {
   el.style.color = secs <= 5 ? 'var(--teal)' : '#aaa';
 }
 
+function _silentRefresh() {
+  if (!currentKey) return;
+  // Tear down existing score subscription and re-establish silently.
+  // Unlike onTournamentChange, we do NOT clear liveScores or show "Loading…"
+  // so the leaderboard and graph stay visible until new data arrives.
+  if (unsubScores) { unsubScores(); unsubScores = null; }
+  if (unsubSibling) { unsubSibling(); unsubSibling = null; }
+
+  // Re-subscribe sibling day if SGG tournament
+  if (SGG_KEYS.includes(currentKey)) {
+    const sibKey = currentKey === 'sgg_2026_day1' ? 'sgg_2026_day2' : 'sgg_2026_day1';
+    unsubSibling = onValue(ref(db, `tournaments/${sibKey}/scores`), snap => {
+      sggSiblingScores = snap.val() || {};
+      renderSGGBanner();
+    });
+  }
+
+  // Re-subscribe main scores — render() fires automatically when data arrives,
+  // which also re-renders the graph tab and preserves _selectedMatchKey
+  unsubScores = onValue(ref(db, `tournaments/${currentKey}/scores`), snap => {
+    liveScores = snap.val() || {};
+    render();
+  });
+}
+
 function _startAutoRefresh() {
   _stopAutoRefresh();
   _nextRefreshAt = Date.now() + 30000;
   _updateCountdown();
 
   _autoRefreshTimer = setInterval(() => {
-    // Re-establish Firebase subscription to force a fresh pull
-    if (currentKey) window.onTournamentChange(currentKey);
+    _silentRefresh();
     _nextRefreshAt = Date.now() + 30000;
     // Flash ✓ briefly to confirm refresh fired
     const el = document.getElementById('refresh-countdown');
