@@ -1544,14 +1544,19 @@ function _syncPlayerLabels(){
   // When fourPlayer + matchplay (no tournament): label p1/p2 as Match 1, p3/p4 as Match 2
   const useDualMatch = isFP && isMP && !activeTournament;
 
+  // Use tournament team names when available
+  const _at = activeTournament ? TOURNAMENT[activeTournament] : null;
+  const _t1name = (_at && _at.type === 'teams' && _at.team1 && _at.team1.name) ? _at.team1.name : 'Team 1';
+  const _t2name = (_at && _at.type === 'teams' && _at.team2 && _at.team2.name) ? _at.team2.name : 'Team 2';
+
   const t1cl = document.getElementById('t1-card-label');
   const t2cl = document.getElementById('t2-card-label');
   if (t1cl) {
-    t1cl.textContent = isTeam ? 'Team 1' : useDualMatch ? 'Player 1 — Match 1' : 'Player 1';
-    t1cl.style.color = useDualMatch ? 'var(--teal)' : '';  // teal for Match 1
+    t1cl.textContent = isTeam ? _t1name : useDualMatch ? 'Player 1 — Match 1' : 'Player 1';
+    t1cl.style.color = useDualMatch ? 'var(--teal)' : '';
   }
   if (t2cl) {
-    t2cl.textContent = isTeam ? 'Team 2' : useDualMatch ? 'Player 2 — Match 1' : 'Player 2';
+    t2cl.textContent = isTeam ? _t2name : useDualMatch ? 'Player 2 — Match 1' : 'Player 2';
     t2cl.style.color = useDualMatch ? 'var(--red)' : isTeam ? 'var(--red)' : '';
   }
 
@@ -1781,6 +1786,10 @@ function onTournamentSelect(val) {
   const _g = id => document.getElementById(id); // safe getter used below
 
   if (t) {
+    // Auto-set game mode based on tournament type — teams are always matchplay
+    if (t.type === 'teams' && gameMode !== 'matchplay') setMode('matchplay');
+    else if (t.type === 'singles' && gameMode === null) setMode('matchplay');
+
     if (t.type === 'teams') {
       // Apply team colours to card labels
       const t1cl = _g('t1-card-label'), t2cl = _g('t2-card-label');
@@ -4093,14 +4102,14 @@ function renderHoleEntry(){
   if(game.team){
     gridHtml=`
       <div style="margin-bottom:14px">
-        <div style="font-size:9px;color:var(--teal);letter-spacing:1.5px;font-weight:700;margin-bottom:8px">TEAM 1</div>
+        <div style="font-size:9px;color:var(--teal);letter-spacing:1.5px;font-weight:700;margin-bottom:8px">${game.tournament&&game.tournament.team1name?game.tournament.team1name.toUpperCase():'TEAM 1'}</div>
         <div class="score-grid">
           ${playerBlock(p1,'p1',h.p1,s1,sb1,'var(--teal)')}
           ${playerBlock(p3,'p3',h.p3,s3,sb3,'var(--teal)')}
         </div>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:14px">
-        <div style="font-size:9px;color:var(--red);letter-spacing:1.5px;font-weight:700;margin-bottom:8px">TEAM 2</div>
+        <div style="font-size:9px;color:var(--red);letter-spacing:1.5px;font-weight:700;margin-bottom:8px">${game.tournament&&game.tournament.team2name?game.tournament.team2name.toUpperCase():'TEAM 2'}</div>
         <div class="score-grid">
           ${playerBlock(p2,'p2',h.p2,s2,sb2,'var(--red)')}
           ${playerBlock(p4,'p4',h.p4,s4,sb4,'var(--red)')}
