@@ -1743,29 +1743,34 @@ function _renderMatchGraph(key) {
     const hd  = refPlayer[`h${h}`] || {};
     const st  = hd.mpStatus || '';
     let pos   = 0;
-    if      (st.includes('All Square') || st === '') pos =  0;
-    else if (st.includes(' UP'))                     pos =  parseInt(st, 10);
-    else if (st.includes(' DOWN'))                   pos = -parseInt(st, 10);
-    else if (st.startsWith('W '))                    pos =  99;  // closed T1 won
-    else if (st.startsWith('L '))                    pos = -99;  // closed T2 won
+
+    if (st.includes('All Square') || st === '') {
+      pos = 0;
+    } else if (st.includes(' UP')) {
+      pos = parseInt(st, 10);
+    } else if (st.includes(' DOWN')) {
+      pos = -parseInt(st, 10);
+    } else if (st.startsWith('W ') || st.startsWith('L ')) {
+      // Closed match — extract numeric margin from the label
+      // e.g. "W 3&2" → +3, "L 1UP" → -1, "W 4&3" → +4
+      // The number before & or end-of-string is the holes up at close
+      const isWin   = st.startsWith('W ');
+      const numMatch = st.match(/(\d+)/);
+      const margin  = numMatch ? parseInt(numMatch[1], 10) : 1;
+      pos = isWin ? margin : -margin;
+    }
 
     // Hole result: direction the worm moved this hole
     const prevRaw = wormData[h - 2] ?? 0;
-    const prev = prevRaw === null ? 0 : prevRaw >=  99 ? 999 : prevRaw <= -99 ? -999 : prevRaw;
-    const cur  = pos    >=  99 ? 999 : pos    <= -99 ? -999 : pos;
-    holeResults.push(cur > prev ? 'W' : cur < prev ? 'L' : 'H');
+    const prev = prevRaw === null ? 0 : prevRaw;
+    holeResults.push(pos > prev ? 'W' : pos < prev ? 'L' : 'H');
     wormData.push(pos);
   }
 
-  // Clamp display values; for closed holes (99/-99) use the last real position
-  // so the line terminates at the correct hole rather than stopping one hole early
-  let lastReal = 0;
-  const displayData = wormData.map(v => {
-    if (v === null) return null;
-    if (v >= 99 || v <= -99) return lastReal; // closed — keep line at last position
-    lastReal = Math.max(-6, Math.min(6, v));
-    return lastReal;
-  });
+  // Clamp display values to ±6 for readability
+  const displayData = wormData.map(v =>
+    v === null ? null : Math.max(-6, Math.min(6, v))
+  );
   let lastRealIdx = -1;
   displayData.forEach((v, i) => { if (v !== null) lastRealIdx = i; });
   const playedDisplay = lastRealIdx + 1;
