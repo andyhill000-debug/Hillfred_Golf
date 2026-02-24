@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0f0f0f"/>
 <title>Hillfred Golf Scorecard</title>
+<meta name="app-version" content="2026.02.24.1"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
   /* ── OUTDOOR OPTIMISED — Hillfred Golf ─────────────────────────────────────
@@ -30,6 +31,7 @@
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   button,input,select{-webkit-appearance:none;touch-action:manipulation}
   button{user-select:none;-webkit-user-select:none}
+  #update-bar{font-family:'DM Sans',sans-serif}
   body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;max-width:480px;margin:0 auto;min-height:100vh;overflow-x:hidden;overscroll-behavior-x:none;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
   html{overflow-x:hidden;overscroll-behavior-x:none}
   .header{background:linear-gradient(135deg,#0a0a0a,#0c2018);border-bottom:2px solid var(--teal);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
@@ -407,6 +409,11 @@
   </script>
 </head>
 <body>
+
+<!-- Update available banner -->
+<div id="update-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--teal);color:#000;font-size:13px;font-weight:700;text-align:center;padding:12px 16px;cursor:pointer;letter-spacing:.3px;font-family:'DM Sans',sans-serif" onclick="doAppUpdate()">
+  ⬆️ New version available — tap to update
+</div>
 
 <!-- TUTORIAL OVERLAY — full-screen mobile slides -->
 <div id="tut-overlay" style="display:none">
@@ -3035,6 +3042,11 @@ function clearAutosave(){
 }
 
 /** On app open: check for a saved in-progress game and resume or prompt */
+function doAppUpdate(){
+  // Hard reload — bypasses all caches
+  window.location.reload(true);
+}
+
 function checkForSavedGame(){
   let saved;
   try{ saved=JSON.parse(localStorage.getItem(LS_AUTOSAVE)); }catch(e){
@@ -5094,6 +5106,31 @@ setTimeout(() => startTutorial(false), 600);
 renderMatchBanner();     // show active tournament on match tab
 checkCanStart();
 checkForSavedGame();
+// Mark this as an active session
+
+// ── Version check: detect if a newer version of the app is available ─────────
+(function checkForUpdate(){
+  const currentVersion = document.querySelector('meta[name="app-version"]')?.content || '';
+  if(!currentVersion) return;
+  // Fetch the app HTML with cache-busting — only need the first chunk to find the version tag
+  fetch(window.location.href + '?_v=' + Date.now(), {
+    cache: 'no-store',
+    headers: { 'Cache-Control': 'no-cache' }
+  })
+  .then(r => r.text())
+  .then(html => {
+    const match = html.match(/name="app-version"\s+content="([^"]+)"/);
+    if(!match) return;
+    const serverVersion = match[1];
+    if(serverVersion !== currentVersion){
+      console.log('[Hillfred] Update available:', currentVersion, '→', serverVersion);
+      document.getElementById('update-bar').style.display = 'block';
+      // Push page content down so banner doesn't cover nav
+      document.body.style.paddingTop = '44px';
+    }
+  })
+  .catch(()=>{}); // silently fail if offline
+})();
 // Mark this as an active session so reloads within the same session don't show the resume modal
 sessionStorage.setItem('hf_session_active', '1');
 
