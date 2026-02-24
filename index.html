@@ -1039,6 +1039,10 @@
     <button class="btn btn-primary" style="margin-top:16px" onclick="showTab('setup')">Start New Game</button>
   </div>
   <div id="play-content" style="display:none">
+  <!-- Persistent input keeps iOS keyboard open during re-renders -->
+  <input id="kb-anchor" type="number" inputmode="numeric"
+    style="position:absolute;opacity:0;width:1px;height:1px;top:-9999px;left:-9999px;pointer-events:none"
+    aria-hidden="true" tabindex="-1"/>
     <div style="text-align:right;padding:6px 16px 0;font-size:10px;color:#ccc;letter-spacing:1px">
       <span class="autosave-dot"></span>AUTO-SAVING &nbsp;·&nbsp; <span id="fb-status-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin-right:3px;vertical-align:middle"></span><span id="fb-status-lbl" style="color:#ccc;font-size:9px;letter-spacing:1px">CONNECTING</span>
     </div>
@@ -3834,10 +3838,10 @@ function renderPlay(){
   const rawResults=getHoleResults();
   const results=effectiveResults(rawResults); // freeze at closing hole
   renderBanner(results,rawResults); renderDots(results,rawResults); renderHoleEntry(); renderScorecard(results,rawResults);
-  // Focus next player input synchronously (must be in same call stack as user event on iOS)
+  // Transfer focus from kb-anchor to the real next input (keyboard stays open)
   if(_pendingField){
     const _nextEl = document.getElementById('score-' + _pendingField);
-    if(_nextEl){ _nextEl.focus(); }
+    if(_nextEl) _nextEl.focus();
   }
   // Show finish bar if: all 18 played, OR matchplay game is closed (won)
   let _mpStatus=game.mode==='matchplay'?matchStatus(results):null;
@@ -4641,8 +4645,16 @@ function onScoreInput(field,value){
   if(!game)return;
   const v=parseInt(value);
   game.holes[activeHole-1][field]=(v>=1&&v<=15)?v:null;
-  // Set pending focus AFTER game state written, BEFORE renderPlay re-renders DOM
-  if(v>=1&&v<=15) _checkAutoAdvance(field);
+  // Determine next field BEFORE renderPlay destroys inputs
+  if(v>=1&&v<=15){
+    _checkAutoAdvance(field);
+    // If there's a next field, focus the kb-anchor NOW (same event stack)
+    // to keep the iOS keyboard open through the re-render
+    if(window._pendingFocusField){
+      const anchor = document.getElementById('kb-anchor');
+      if(anchor) anchor.focus();
+    }
+  }
   autosave(); // persist every score change
   // Sync to Firebase when all active players have scored this hole
   if(game.tournament){
