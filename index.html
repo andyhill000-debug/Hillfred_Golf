@@ -3811,6 +3811,8 @@ function toggleScorecard(){
   icon.style.transform=open?'':' rotate(180deg)';
 }
 function renderPlay(){
+  const _pendingField = window._pendingFocusField || null;
+  window._pendingFocusField = null;
   if(!game){
     document.getElementById('play-empty').style.display='block';
     document.getElementById('play-content').style.display='none';
@@ -3821,6 +3823,11 @@ function renderPlay(){
   const rawResults=getHoleResults();
   const results=effectiveResults(rawResults); // freeze at closing hole
   renderBanner(results,rawResults); renderDots(results,rawResults); renderHoleEntry(); renderScorecard(results,rawResults);
+  // Focus next player input synchronously (must be in same call stack as user event on iOS)
+  if(_pendingField){
+    const _nextEl = document.getElementById('score-' + _pendingField);
+    if(_nextEl){ _nextEl.focus(); _nextEl.select(); }
+  }
   // Show finish bar if: all 18 played, OR matchplay game is closed (won)
   let _mpStatus=game.mode==='matchplay'?matchStatus(results):null;
   // For fourPlayer matchplay: game is "won" when BOTH matches are closed
@@ -4634,36 +4641,25 @@ function onScoreInput(field,value){
   renderPlay();
 }
 function _checkAutoAdvance(field, inputEl){
-  // Defer to next tick so iOS has committed the value to the input
-  setTimeout(()=>{
-    if(!game) return;
-    // Re-read the value from the element in case it wasn't ready at call time
-    const el = inputEl || document.getElementById('score-' + field);
-    const v = el ? parseInt(el.value) : NaN;
-    if(isNaN(v) || v < 1 || v > 15) return; // not a valid score yet
-    const h = game.holes[activeHole-1];
-    // Determine player order
-    let order;
-    if(game.team)          order = ['p1','p3','p2','p4'];
-    else if(game.fourPlayer) order = ['p1','p2','p3','p4'];
-    else                    order = ['p1','p2'];
-    const idx = order.indexOf(field);
-    if(idx === -1) return;
-    // Find next unfilled field
-    for(let i = idx+1; i < order.length; i++){
-      const nextField = order[i];
-      if(h[nextField] == null){
-        // Wait for renderPlay() to finish re-rendering the inputs
-        setTimeout(()=>{
-          const next = document.getElementById('score-' + nextField);
-          if(next){ next.focus(); next.select(); }
-        }, 150);
-        return;
-      }
+  if(!game) return;
+  const el = inputEl || document.getElementById('score-' + field);
+  const v = el ? parseInt(el.value) : NaN;
+  if(isNaN(v) || v < 1 || v > 15) return;
+  const h = game.holes[activeHole-1];
+  let order;
+  if(game.team)            order = ['p1','p3','p2','p4'];
+  else if(game.fourPlayer) order = ['p1','p2','p3','p4'];
+  else                     order = ['p1','p2'];
+  const idx = order.indexOf(field);
+  if(idx === -1) return;
+  // Store next field so we can focus it after renderPlay re-renders
+  for(let i = idx+1; i < order.length; i++){
+    if(h[order[i]] == null){
+      window._pendingFocusField = order[i];
+      return;
     }
-  }, 0);
+  }
 }
-// Keep old name as alias for any residual calls
 function onScoreDone(field){ _checkAutoAdvance(field, document.getElementById('score-'+field)); }
 function setHole(n){activeHole=n;renderPlay();}
 function prevHole(){if(activeHole>1){activeHole--;renderPlay();}}
