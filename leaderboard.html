@@ -1733,6 +1733,16 @@ function _renderMatchGraph(key) {
   const refPlayer   = t1Players[0]?.[1];
   const holesPlayed = refPlayer?.holesPlayed || 0;
 
+  // ── DEBUG: dump raw hole data to console ──────────────────────────────────
+  console.group(`[WormDebug] ${g.label}`);
+  console.log('holesPlayed:', holesPlayed, '| status:', g.status);
+  console.log('refPlayer key:', t1Players[0]?.[0]);
+  for (let h = 1; h <= 18; h++) {
+    const hd = refPlayer?.[`h${h}`];
+    if (hd) console.log(`  h${h}: mpStatus="${hd.mpStatus}" mpLeading=${hd.mpLeading}`);
+  }
+  console.groupEnd();
+
   // ── Build hole-by-hole worm from mpStatus of the T1 reference player ────────
   // mpStatus is written from each player's own perspective:
   //   T1 player: "2 UP" = T1 leads by 2, "3 DOWN" = T2 leads by 3
