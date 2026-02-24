@@ -4228,8 +4228,8 @@ function renderHoleEntry(){
         <button class="step-btn" onclick="stepScore('${field}',-1)">−</button>
         <input class="step-val" id="score-${field}" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="15"
           value="${displayVal}" placeholder="${isPickup?'P':'—'}"
-          oninput="onScoreInput('${field}',this.value);if(parseInt(this.value)>=1&&parseInt(this.value)<=15)onScoreDone('${field}')"
-          onchange="onScoreInput('${field}',this.value)"/>
+          oninput="onScoreInput('${field}',this.value);_checkAutoAdvance('${field}',this)"
+          onchange="onScoreInput('${field}',this.value);_checkAutoAdvance('${field}',this)"/>
         <button class="step-btn" onclick="stepScore('${field}',1)">+</button>
       </div>
       ${isPickup ? `<div class="score-result-row" style="color:#f97316;font-size:10px">${pickupNote}</div>` : resultLbl(gross,strokes,sbCalc)}
@@ -4600,6 +4600,7 @@ function stepScore(field,delta){
   if(game.holes[activeHole-1][field]==='P') game.holes[activeHole-1][field]=null;
   let v=parseInt(el.value)||0; v=Math.max(1,Math.min(15,v+delta));
   el.value=v; onScoreInput(field,v);
+  _checkAutoAdvance(field, el);
 }
 function togglePickup(field){
   if(!game)return;
@@ -4632,34 +4633,38 @@ function onScoreInput(field,value){
   }
   renderPlay();
 }
-function onScoreDone(field){
-  // Auto-advance focus to next unfilled player input after a score is confirmed
-  if(!game) return;
-  const h = game.holes[activeHole-1];
-  // Determine player order based on game mode
-  let order;
-  if(game.team){
-    order = ['p1','p3','p2','p4']; // 4BBB: Team 1 first, then Team 2
-  } else if(game.fourPlayer){
-    order = ['p1','p2','p3','p4'];
-  } else {
-    order = ['p1','p2'];
-  }
-  const idx = order.indexOf(field);
-  if(idx === -1) return;
-  // Find next unfilled field in order
-  for(let i = idx+1; i < order.length; i++){
-    const nextField = order[i];
-    if(h[nextField] == null){
-      // Small delay so renderPlay() from onScoreInput fires first
-      setTimeout(()=>{
-        const el = document.getElementById('score-' + nextField);
-        if(el){ el.focus(); el.select(); }
-      }, 120);
-      return;
+function _checkAutoAdvance(field, inputEl){
+  // Defer to next tick so iOS has committed the value to the input
+  setTimeout(()=>{
+    if(!game) return;
+    // Re-read the value from the element in case it wasn't ready at call time
+    const el = inputEl || document.getElementById('score-' + field);
+    const v = el ? parseInt(el.value) : NaN;
+    if(isNaN(v) || v < 1 || v > 15) return; // not a valid score yet
+    const h = game.holes[activeHole-1];
+    // Determine player order
+    let order;
+    if(game.team)          order = ['p1','p3','p2','p4'];
+    else if(game.fourPlayer) order = ['p1','p2','p3','p4'];
+    else                    order = ['p1','p2'];
+    const idx = order.indexOf(field);
+    if(idx === -1) return;
+    // Find next unfilled field
+    for(let i = idx+1; i < order.length; i++){
+      const nextField = order[i];
+      if(h[nextField] == null){
+        // Wait for renderPlay() to finish re-rendering the inputs
+        setTimeout(()=>{
+          const next = document.getElementById('score-' + nextField);
+          if(next){ next.focus(); next.select(); }
+        }, 150);
+        return;
+      }
     }
-  }
+  }, 0);
 }
+// Keep old name as alias for any residual calls
+function onScoreDone(field){ _checkAutoAdvance(field, document.getElementById('score-'+field)); }
 function setHole(n){activeHole=n;renderPlay();}
 function prevHole(){if(activeHole>1){activeHole--;renderPlay();}}
 function saveAndNext(){if(activeHole<18){activeHole++;renderPlay();}}
