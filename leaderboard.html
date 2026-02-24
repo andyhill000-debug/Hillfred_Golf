@@ -1733,16 +1733,17 @@ function _renderMatchGraph(key) {
   const refPlayer   = t1Players[0]?.[1];
   const holesPlayed = refPlayer?.holesPlayed || 0;
 
-  // ── DEBUG: dump raw hole data to console ──────────────────────────────────
-  console.group(`[WormDebug] ${g.label}`);
-  console.log('holesPlayed:', holesPlayed, '| status:', g.status);
-  console.log('refPlayer key:', t1Players[0]?.[0]);
-  for (let h = 1; h <= 18; h++) {
-    const hd = refPlayer?.[`h${h}`];
-    if (hd) console.log(`  h${h}: mpStatus="${hd.mpStatus}" mpLeading=${hd.mpLeading}`);
-  }
-  console.groupEnd();
-
+  // ── Infer missing hole 18 for matches that went the full distance ────────────
+  // If the match is finished, holesPlayed < 18, and the last status is X DOWN/UP
+  // (not a mid-round close like 3&2), the 18th hole was played but not synced.
+  // Extend the worm by repeating the last known position at hole 18.
+  const lastSyncedHole = holesPlayed;
+  const lastSyncedStatus = refPlayer?.[`h${lastSyncedHole}`]?.mpStatus || '';
+  const isFullMatch = g.status === 'finished' &&
+                      lastSyncedHole > 0 && lastSyncedHole < 18 &&
+                      (lastSyncedStatus.includes(' DOWN') || lastSyncedStatus.includes(' UP')) &&
+                      !lastSyncedStatus.startsWith('W ') && !lastSyncedStatus.startsWith('L ');
+  const effectiveHoles = isFullMatch ? 18 : holesPlayed;
   // ── Build hole-by-hole worm from mpStatus of the T1 reference player ────────
   // mpStatus is written from each player's own perspective:
   //   T1 player: "2 UP" = T1 leads by 2, "3 DOWN" = T2 leads by 3
@@ -1751,7 +1752,16 @@ function _renderMatchGraph(key) {
   const holeResults = []; // 'W' / 'L' / 'H' / null per hole
 
   for (let h = 1; h <= 18; h++) {
-    if (h > holesPlayed) { wormData.push(null); holeResults.push(null); continue; }
+    if (h > effectiveHoles) { wormData.push(null); holeResults.push(null); continue; }
+
+    // For inferred hole 18 (not in Firebase), carry last known position as Halved
+    if (h > lastSyncedHole) {
+      const lastPos = wormData[wormData.length - 1] ?? 0;
+      wormData.push(lastPos);
+      holeResults.push('H'); // hole 18 was halved (neither side gained)
+      continue;
+    }
+
     const hd  = refPlayer[`h${h}`] || {};
     const st  = hd.mpStatus || '';
     let pos   = 0;
@@ -1763,18 +1773,16 @@ function _renderMatchGraph(key) {
     } else if (st.includes(' DOWN')) {
       pos = -parseInt(st, 10);
     } else if (st.startsWith('W ') || st.startsWith('L ')) {
-      // Closed match — extract numeric margin from the label
-      // e.g. "W 3&2" → +3, "L 1UP" → -1, "W 4&3" → +4
-      // The number before & or end-of-string is the holes up at close
-      const isWin   = st.startsWith('W ');
+      // Closed match — extract numeric margin from label e.g. "W 3&2" → +3, "L 1UP" → -1
+      const isWin    = st.startsWith('W ');
       const numMatch = st.match(/(\d+)/);
-      const margin  = numMatch ? parseInt(numMatch[1], 10) : 1;
+      const margin   = numMatch ? parseInt(numMatch[1], 10) : 1;
       pos = isWin ? margin : -margin;
     }
 
     // Hole result: direction the worm moved this hole
     const prevRaw = wormData[h - 2] ?? 0;
-    const prev = prevRaw === null ? 0 : prevRaw;
+    const prev    = prevRaw === null ? 0 : prevRaw;
     holeResults.push(pos > prev ? 'W' : pos < prev ? 'L' : 'H');
     wormData.push(pos);
   }
@@ -1819,7 +1827,9 @@ function _renderMatchGraph(key) {
   const svgWorm   = _buildWormSVG(
     displayData.slice(0, playedDisplay),
     holeResults.slice(0, playedDisplay),
-    isLive
+    isLive,
+    g.t1name,
+    g.t2name
   );
 
   // Dynamic legend labels (team names instead of hardcoded ROW/AUS)
@@ -1853,7 +1863,7 @@ function _renderMatchGraph(key) {
     </div>`;
 }
 
-function _buildWormSVG(data, results, isLive) {
+function _buildWormSVG(data, results, isLive, t1name, t2name) {
   const W = 560, H = 200;
   const PAD = { top: 28, right: 24, bottom: 36, left: 40 };
   const iW = W - PAD.left - PAD.right, iH = H - PAD.top - PAD.bottom;
@@ -1910,22 +1920,20 @@ function _buildWormSVG(data, results, isLive) {
     const y = yS(v);
     if (y < PAD.top || y > H-PAD.bottom) return '';
     const lbl = v===0?'A/S':Math.abs(v);
-    return `<text x="${PAD.left-5}" y="${(y+4).toFixed(1)}" text-anchor="end" fill="${v===0?'#bbb':'#888'}" font-size="9" font-family="sans-serif">${lbl}</text>`;
+    return `<text x="${PAD.left-5}" y="${(y+4).toFixed(1)}" text-anchor="end" fill="${v===0?'#fff':'#bbb'}" font-size="${v===0?10:9}" font-weight="${v===0?700:400}" font-family="sans-serif">${lbl}</text>`;
   }).join('');
 
   // X-axis labels: 0 at origin, then 1–18 for each hole
   const xLabels = [
-    // "0" label at origin
-    `<text x="${xS(0).toFixed(1)}" y="${H-PAD.bottom+14}" text-anchor="middle" fill="#888" font-size="8" font-family="sans-serif">0</text>`,
-    // Holes 1–18
+    `<text x="${xS(0).toFixed(1)}" y="${H-PAD.bottom+14}" text-anchor="middle" fill="#aaa" font-size="9" font-family="sans-serif">0</text>`,
     ...Array.from({length:18},(_,i) =>
-      `<text x="${xS(i+1).toFixed(1)}" y="${H-PAD.bottom+14}" text-anchor="middle" fill="${i<data.length&&data[i]!==null?'#bbb':'#333'}" font-size="8" font-family="sans-serif">${i+1}</text>`
+      `<text x="${xS(i+1).toFixed(1)}" y="${H-PAD.bottom+14}" text-anchor="middle" fill="${i<data.length&&data[i]!==null?'#ddd':'#555'}" font-size="${i<data.length&&data[i]!==null?9:8}" font-weight="${i<data.length&&data[i]!==null?600:400}" font-family="sans-serif">${i+1}</text>`
     )
   ].join('');
 
-  // FRONT 9 / BACK 9 labels centred over their respective halves
-  const f9 = `<text x="${xS(4.5).toFixed(1)}" y="${PAD.top-10}" text-anchor="middle" fill="#555" font-size="9" font-family="sans-serif">FRONT 9</text>`;
-  const b9 = `<text x="${xS(13.5).toFixed(1)}" y="${PAD.top-10}" text-anchor="middle" fill="#555" font-size="9" font-family="sans-serif">BACK 9</text>`;
+  // FRONT 9 / BACK 9 labels — bold, teal-tinted
+  const f9 = `<text x="${xS(4.5).toFixed(1)}" y="${PAD.top-10}" text-anchor="middle" fill="#00c9a7" font-size="10" font-weight="700" font-family="sans-serif" letter-spacing="1">FRONT 9</text>`;
+  const b9 = `<text x="${xS(13.5).toFixed(1)}" y="${PAD.top-10}" text-anchor="middle" fill="#00c9a7" font-size="10" font-weight="700" font-family="sans-serif" letter-spacing="1">BACK 9</text>`;
 
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" id="worm-svg">
   <rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>
@@ -1933,8 +1941,10 @@ function _buildWormSVG(data, results, isLive) {
   <path d="${fillD}" fill="#ffffff" opacity="0.02"/>
   ${segments}
   ${liveRing}${dots}${yLabels}${xLabels}
-  <text x="14" y="${H/2}" text-anchor="middle" fill="#555" font-size="9" font-family="sans-serif" transform="rotate(-90,14,${H/2})">POSITION</text>
-  <text x="${W/2}" y="${H-3}" text-anchor="middle" fill="#222" font-size="9" font-family="sans-serif">HOLE</text>
+  <text x="14" y="${H/2}" text-anchor="middle" fill="#aaa" font-size="10" font-weight="700" font-family="sans-serif" letter-spacing="1" transform="rotate(-90,14,${H/2})">POSITION</text>
+  <text x="${W/2}" y="${H-3}" text-anchor="middle" fill="#aaa" font-size="10" font-weight="700" font-family="sans-serif" letter-spacing="1">HOLE</text>
+  <text x="${PAD.left+4}" y="${PAD.top+10}" fill="#00e8bb" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.8">▲ ${t1name}</text>
+  <text x="${PAD.left+4}" y="${H-PAD.bottom-5}" fill="#ff5a5a" font-size="9" font-weight="700" font-family="sans-serif" opacity="0.8">▼ ${t2name}</text>
 </svg>`;
 }
 
