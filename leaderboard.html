@@ -632,6 +632,8 @@ window.onTournamentChange = function(key) {
     if (_gcLoaded && _ccLoaded) renderMatchProgress();
   });
   unsubCounts = () => { unsubGC(); unsubCC(); };
+  // Reset the auto-refresh countdown whenever a tournament is (re-)selected
+  _startAutoRefresh();
 };
 
 // ── Match progress bar ───────────────────────────────────────────────────────
@@ -1956,9 +1958,10 @@ function _startAutoRefresh() {
   _updateCountdown();
 
   _autoRefreshTimer = setInterval(() => {
-    window.render();
+    // Re-establish Firebase subscription to force a fresh pull
+    if (currentKey) window.onTournamentChange(currentKey);
     _nextRefreshAt = Date.now() + 30000;
-    // Flash countdown teal briefly to indicate refresh fired
+    // Flash ✓ briefly to confirm refresh fired
     const el = document.getElementById('refresh-countdown');
     if (el) { el.style.color = 'var(--teal)'; el.textContent = '✓'; }
     setTimeout(() => _updateCountdown(), 600);
@@ -1972,15 +1975,8 @@ function _stopAutoRefresh() {
   if (_countdownTimer)   { clearInterval(_countdownTimer);   _countdownTimer   = null; }
 }
 
-// Start auto-refresh as soon as the page loads
+// Start auto-refresh once a tournament is loaded
 _startAutoRefresh();
-
-// Also restart when a tournament is selected so the 30s resets from that point
-const _origOnTournamentChange = window.onTournamentChange;
-window.onTournamentChange = function(val) {
-  _origOnTournamentChange && _origOnTournamentChange(val);
-  _startAutoRefresh();
-};
 
 // Hole detail toggle
 window.toggleDetail = function(i) {
