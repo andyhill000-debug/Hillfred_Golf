@@ -1883,8 +1883,6 @@ let _tFormType = 'singles';  // 'singles' | 'teams'
 let _teamsMatchFmt = 'singles'; // 'singles' | '4bbb' — per-match format for teams tournaments
 
 function setTeamsMatchFormat(fmt) {
-  // Preset tournaments have a fixed format — ignore user attempts to change it
-  if (activeTournament && TOURNAMENT[activeTournament]?.preset) return;
   _teamsMatchFmt = fmt;
   const is4bbb = fmt === '4bbb';
 
@@ -2041,7 +2039,7 @@ function onTournamentSelect(val) {
       populateTournamentDropdown('p4-name-select', t.team2.players);
       ['p1-name-select-wrap','p2-name-select-wrap'].forEach(id => { const e=_g(id); if(e) e.style.display='block'; });
       ['p1-name','p2-name','p1-name-label','p2-name-label'].forEach(id => { const e=_g(id); if(e) e.style.display='none'; });
-      // Restore saved format
+      // Restore saved format — call setTeamsMatchFormat to also sync p3/p4 fields
       const savedFmt = t.matchFmt || 'singles';
       _teamsMatchFmt = savedFmt;
       setTeamsMatchFormat(savedFmt);
