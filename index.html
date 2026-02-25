@@ -3541,18 +3541,18 @@ function startGame(){
 
 
 function openLeaderboard() {
-  try{localStorage.setItem('hf_resume_ts', String(Date.now()));}catch(e){};
-  const base = window.location.href.replace(/[^/]*$/, '');
+  const base = window.location.href.replace(/[^/]*(\?.*)?$/, '');
   const tKey = activeTournament || '';
-  const url  = base + 'leaderboard.html' + (tKey ? '?t=' + encodeURIComponent(tKey) : '');
+  const backUrl = encodeURIComponent(base + 'index.html#play');
+  const url = base + 'leaderboard.html?back=' + backUrl + (tKey ? '&t=' + encodeURIComponent(tKey) : '');
   window.location.href = url;
 }
 
 function openMatchGraph() {
-  try{localStorage.setItem('hf_resume_ts', String(Date.now()));}catch(e){};
-  const base = window.location.href.replace(/[^/]*$/, '');
+  const base = window.location.href.replace(/[^/]*(\?.*)?$/, '');
   const tKey = activeTournament || '';
-  const url  = base + 'match-graph.html' + (tKey ? '?t=' + encodeURIComponent(tKey) : '');
+  const backUrl = encodeURIComponent(base + 'index.html#play');
+  const url = base + 'match-graph.html?back=' + backUrl + (tKey ? '&t=' + encodeURIComponent(tKey) : '');
   window.location.href = url;
 }
 
@@ -3628,10 +3628,13 @@ function _syncHoleToFirebase(holeNum) {
     const t2n = game.tournament.team2name || 'Team 2';
 
     // Derive per-player matchplay status
-    // For fourPlayer: p3/p4 use _mpSt2 (their own match), teamSlot 1/2 respectively
+    // For 4BBB team games: all 4 players share the same match status (_mpSt)
+    // For fourPlayer non-team: p3/p4 use _mpSt2 (their own independent match)
     let pMpStatus = null, pMpLeading = 0;
-    const _st = (p.field === 'p3' || p.field === 'p4') ? _mpSt2 : _mpSt;
-    const _isP1Side = (p.field === 'p3') ? true : (p.field === 'p4') ? false : (p.teamSlot === 1);
+    const _st = (team) ? _mpSt
+              : (p.field === 'p3' || p.field === 'p4') ? _mpSt2 : _mpSt;
+    // In 4BBB: p1+p3 = Team1, p2+p4 = Team2. teamSlot 1 = T1 side, 2 = T2 side.
+    const _isP1Side = team ? (p.teamSlot === 1) : (p.field === 'p3') ? true : (p.field === 'p4') ? false : (p.teamSlot === 1);
     if (_st) {
       const rawLeading = _st.closed ? (_st.winner || 0) : (_st.leading || 0);
       if (_st.label === 'All Square' || _st.label === 'All Square — Halved') {
@@ -5587,7 +5590,30 @@ setTimeout(() => startTutorial(false), 600);
     selectTournamentFromList(keys[0]);
   }
 })();
-renderMatchBanner();     // show active tournament on match tab
+// ── Back-to-scorecard: if returning from leaderboard/graph via #play ──────────
+// Run BEFORE checkForSavedGame — directly restore from localStorage and show play tab.
+// This is the only reliable cross-platform approach (works on iOS PWA, Android, desktop).
+(function handlePlayHash() {
+  if (window.location.hash !== '#play') return;
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(LS_AUTOSAVE)); } catch(e) {}
+  if (saved && saved.game) {
+    const g = saved.game;
+    game       = g;
+    gameMode   = g.mode || 'matchplay';
+    teamPlay   = g.team || false;
+    fourPlayer = (g.playerCount || 2) >= 3;
+    const nextHole = g.holes.find(h => h.p1 == null);
+    activeHole = nextHole ? nextHole.hole : 18;
+    renderMatchBanner();
+    checkCanStart();
+    showTab('play');
+    return; // skip checkForSavedGame entirely
+  }
+  // No local save — just show match tab
+})();
+renderMatchBanner();
 checkCanStart();
 checkForSavedGame();
 // Mark this as an active session

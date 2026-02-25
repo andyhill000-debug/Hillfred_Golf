@@ -173,13 +173,15 @@ import { getDatabase, ref, onValue }            from 'https://www.gstatic.com/fi
 
 // ── Navigation ───────────────────────────────────────────────────────────────
 window.goBack = function() {
-  // If there's history (browser tab), go back
-  if (window.history.length > 1) {
+  // Use ?back= param if provided (set by index.html when navigating here)
+  const backParam = new URLSearchParams(location.search).get('back');
+  if (backParam) {
+    window.location.href = decodeURIComponent(backParam);
+  } else if (window.history.length > 1) {
     window.history.back();
   } else {
-    // PWA standalone — navigate to index.html, preserving same base URL
     const base = window.location.href.replace(/[^/]*$/, '');
-    window.location.href = base + 'index.html';
+    window.location.href = base + 'index.html#play';
   }
 };
 
@@ -360,6 +362,21 @@ function renderGraph(key) {
       '<div class="empty"><div class="icon">⚠️</div><p>Match not found</p></div>';
     return;
   }
+
+  // ── DIAGNOSTIC: log raw data shape ───────────────────────────────────────────
+  console.log('[Graph] key:', key);
+  console.log('[Graph] g.t1name:', g.t1name, '| g.t2name:', g.t2name);
+  console.log('[Graph] g.players count:', g.players.length);
+  g.players.forEach(([name, pd]) => {
+    const rootTn = pd.teamName;
+    let holeTn = null;
+    for (let i = 1; i <= 18; i++) { if (pd[`h${i}`]?.teamName) { holeTn = pd[`h${i}`].teamName; break; } }
+    console.log(`  player: ${name} | root teamName: ${rootTn} | hole teamName: ${holeTn} | holesPlayed: ${pd.holesPlayed}`);
+    for (let i = 1; i <= 5; i++) {
+      if (pd[`h${i}`]) console.log(`    h${i} mpStatus: ${pd[`h${i}`].mpStatus}`);
+    }
+  });
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // Split players into T1 / T2
   const t1Players = [], t2Players = [];

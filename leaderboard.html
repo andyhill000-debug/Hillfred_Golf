@@ -579,7 +579,7 @@ window.onTournamentChange = function(key) {
   liveScores = {};
   Object.keys(prevRanks).forEach(k => delete prevRanks[k]);
 
-  document.getElementById('back-btn').href = 'index.html';
+  // back button href is set from URL ?back= param at init
   hideBanner();
 
   if (!key) {
@@ -2029,6 +2029,9 @@ window.toggleDetail = function(i) {
 // Auto-select from URL param
 const urlP = new URLSearchParams(window.location.search);
 const tP = urlP.get('t');
+const backUrl = urlP.get('back') || 'index.html';
+// Set back button href from URL param — preserves #play hash for scorecard return
+document.getElementById('back-btn').href = backUrl;
 if (tP) {
   setTimeout(() => {
     const sel = document.getElementById('t-select');
