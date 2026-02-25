@@ -22,7 +22,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 /* ── Header ────────────────────────────────────────────────────────────────── */
 .header{background:#080808;border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
 .header-left{display:flex;align-items:center;gap:12px;}
-.back-btn{display:flex;align-items:center;gap:5px;background:rgba(0,232,187,.07);border:1.5px solid rgba(0,232,187,.2);border-radius:8px;color:var(--teal);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:6px 11px;text-decoration:none;transition:background .15s;letter-spacing:.3px;}
+.back-btn{display:flex;align-items:center;gap:5px;background:rgba(0,232,187,.07);border:1.5px solid rgba(0,232,187,.2);border-radius:8px;color:var(--teal);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:6px 11px;text-decoration:none;transition:background .15s;letter-spacing:.3px;cursor:pointer;}
 .back-btn:hover{background:rgba(0,232,187,.13);}
 .header-brand{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;letter-spacing:-.3px;}
 .header-brand span{color:var(--teal);}
@@ -356,7 +356,7 @@ select.t-select{width:100%;background:var(--card);border:1.5px solid var(--borde
 <!-- Header -->
 <div class="header">
   <div class="header-left">
-    <a class="back-btn" id="back-btn" href="index.html">← Scorecard</a>
+    <button class="back-btn" id="back-btn" onclick="goBack()">← Scorecard</button>
     <div class="header-brand">Hill<span>fred</span></div>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
@@ -2029,9 +2029,8 @@ window.toggleDetail = function(i) {
 // Auto-select from URL param
 const urlP = new URLSearchParams(window.location.search);
 const tP = urlP.get('t');
-const backUrl = urlP.get('back') || 'index.html';
-// Set back button href from URL param — preserves #play hash for scorecard return
-document.getElementById('back-btn').href = backUrl;
+const _backUrl = urlP.get('back') || 'index.html';
+window.goBack = function() { window.location.href = _backUrl; };
 if (tP) {
   setTimeout(() => {
     const sel = document.getElementById('t-select');

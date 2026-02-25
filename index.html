@@ -44,6 +44,10 @@
   .nav-btn.active .nav-label{color:#000}
   .nav-btn.nav-live{color:var(--teal)}
   .nav-btn.nav-live .nav-label{color:var(--teal)}
+  .nav-btn.nav-scorecard{color:#f59e0b}
+  .nav-btn.nav-scorecard .nav-label{color:#f59e0b}
+  .nav-btn.nav-scorecard.active{background:#f59e0b;color:#000}
+  .nav-btn.nav-scorecard.active .nav-label{color:#000}
   .tab{display:none;padding-bottom:calc(100px + env(safe-area-inset-bottom))}.tab.active{display:block}
   .card{background:var(--card);border-radius:14px;margin:12px 14px;padding:18px;border:1px solid var(--border)}
   .card-label{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--teal);text-transform:uppercase;margin-bottom:12px}
@@ -679,6 +683,9 @@
   </button>
   <button class="nav-btn nav-live" id="navbtn-graph"    onclick="openMatchGraph()">
     <span class="nav-icon">📈</span><span class="nav-label">Match Graph</span>
+  </button>
+  <button class="nav-btn nav-scorecard" id="navbtn-scorecard" onclick="showTab('play')" style="display:none">
+    <span class="nav-icon">🎯</span><span class="nav-label">Scorecard</span>
   </button>
 </div>
 
@@ -1616,7 +1623,7 @@ function effectiveResults(results) {
 function showTab(name) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   // Map tab names to nav button ids
-  const navMap = {match:'navbtn-match', tournament:'navbtn-tournament', history:'navbtn-history'};
+  const navMap = {match:'navbtn-match', tournament:'navbtn-tournament', history:'navbtn-history', play:'navbtn-scorecard'};
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   if(navMap[name]) document.getElementById(navMap[name]).classList.add('active');
   const tabEl = document.getElementById('tab-'+name);
@@ -3392,6 +3399,7 @@ function checkForSavedGame(){
     fourPlayer = (g.playerCount||2) >= 3;
     const nextHole = g.holes.find(h=>h.p1==null);
     activeHole = nextHole ? nextHole.hole : 18;
+    document.getElementById('navbtn-scorecard').style.display = '';
     showTab('play');
     renderPlay();
     return;
@@ -3449,6 +3457,7 @@ function resumeGame(){
   const nextHole=game.holes.find(h=>h.p1==null);
   activeHole=nextHole?nextHole.hole:18;
   document.getElementById('resume-modal').classList.add('hidden');
+  document.getElementById('navbtn-scorecard').style.display = '';
   showTab('play');
   renderPlay(); // belt-and-braces — ensure scorecard renders
   console.log('[Hillfred] Game resumed at hole', activeHole);
@@ -3535,6 +3544,7 @@ function startGame(){
   activeHole=1;
   autosave();
   _startFirebaseGame();
+  document.getElementById('navbtn-scorecard').style.display = '';
   showTab('play');
 }
 
@@ -5206,7 +5216,9 @@ function finishGame(){
   clearAutosave(); // game is complete — remove the in-progress backup
   // Refresh tournament progress in case this was the last match
   setTimeout(renderTournamentTab, 200);
-  game=null; showTab('history');
+  game=null;
+  document.getElementById('navbtn-scorecard').style.display = 'none';
+  showTab('history');
 }
 
 // ═══════════════════════════════════════════
@@ -5415,12 +5427,20 @@ loadClientConfig();
 // ═══════════════════════════════════════════
 const LS_DEVICE_ID = 'hf_device_id';
 function getDeviceId(){
-  let id = localStorage.getItem(LS_DEVICE_ID);
-  if(!id){
-    // Generate a random ID and persist it
-    id = 'dev_' + Math.random().toString(36).slice(2,10) + '_' + Date.now().toString(36);
-    try{ localStorage.setItem(LS_DEVICE_ID, id); }catch(e){}
+  // Try localStorage first, then cookie fallback (survives cache clear)
+  let id = null;
+  try { id = localStorage.getItem(LS_DEVICE_ID); } catch(e) {}
+  if (!id) {
+    // Try reading from cookie
+    const m = document.cookie.match(/hf_did=([^;]+)/);
+    if (m) id = m[1];
   }
+  if (!id) {
+    id = 'dev_' + Math.random().toString(36).slice(2,10) + '_' + Date.now().toString(36);
+  }
+  // Persist in both localStorage and cookie (cookie survives cache clears)
+  try { localStorage.setItem(LS_DEVICE_ID, id); } catch(e) {}
+  try { document.cookie = 'hf_did=' + id + ';max-age=31536000;path=/'; } catch(e) {}
   return id;
 }
 const DEVICE_ID = getDeviceId();
@@ -5608,6 +5628,7 @@ setTimeout(() => startTutorial(false), 600);
     activeHole = nextHole ? nextHole.hole : 18;
     renderMatchBanner();
     checkCanStart();
+    document.getElementById('navbtn-scorecard').style.display = '';
     showTab('play');
     return; // skip checkForSavedGame entirely
   }
