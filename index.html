@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png"/>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png"/>
 <title>Hillfred Golf Scorecard</title>
-<meta name="app-version" content="2026.02.26.7"/>
+<meta name="app-version" content="2026.02.26.8"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
   /* ── OUTDOOR OPTIMISED — Hillfred Golf ─────────────────────────────────────
@@ -185,12 +185,6 @@
   @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
   .animate-in{animation:slideIn .2s ease-out}
   .logo-svg{height:30px}
-  .pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid #333;background:transparent;transition:background .15s,border-color .15s;}
-  .pin-dot.filled{background:var(--teal);border-color:var(--teal);}
-  .pin-dot.error{background:#ff5a5a;border-color:#ff5a5a;}
-  .pin-btn{padding:16px;background:#1a1a1a;border:1.5px solid #2a2a2a;border-radius:12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:22px;font-weight:700;cursor:pointer;transition:background .12s,border-color .12s;-webkit-tap-highlight-color:transparent;}
-  .pin-btn:hover{background:#222;border-color:#777;}
-  .pin-btn:active{background:rgba(0,232,187,.12);border-color:var(--teal);}
     .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}
   .modal-overlay.hidden{display:none}
   .modal-box{background:#1c1c1c;border:2px solid var(--teal);border-radius:18px;padding:28px 22px;max-width:400px;width:100%;animation:slideIn .25s ease-out}
@@ -658,32 +652,23 @@
     <div class="modal-title" id="admin-modal-title">Administrator Access</div>
     <div class="modal-sub" id="admin-modal-sub">Enter your PIN.</div>
 
-    <!-- VIEW: PIN pad -->
-    <div id="admin-view-pin">
-      <div style="display:flex;justify-content:center;gap:12px;margin:18px 0 6px">
-        <div class="pin-dot" id="pin-dot-0"></div>
-        <div class="pin-dot" id="pin-dot-1"></div>
-        <div class="pin-dot" id="pin-dot-2"></div>
-        <div class="pin-dot" id="pin-dot-3"></div>
+    <!-- VIEW: Password input -->
+    <div id="admin-view-pin" style="margin-top:8px">
+      <div style="position:relative;margin-bottom:8px">
+        <input id="admin-pin-input" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          placeholder="Enter passphrase"
+          style="width:100%;padding:12px 44px 12px 14px;background:#111;border:1.5px solid #2a2a2a;border-radius:11px;color:#f0f0f0;font-family:'DM Sans',sans-serif;font-size:16px;outline:none;box-sizing:border-box;letter-spacing:.5px"
+          oninput="document.getElementById('admin-pw-error').textContent=''"
+          onkeydown="if(event.key==='Enter')_pinSubmit()"/>
+        <button onclick="togglePinVisibility()" id="pin-vis-btn"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#555;font-size:16px;cursor:pointer;padding:4px;line-height:1">👁</button>
       </div>
       <div id="admin-pw-error" style="color:#ff5a5a;font-size:12px;font-weight:700;text-align:center;min-height:18px;letter-spacing:.3px;margin-bottom:8px"></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
-        <button class="pin-btn" onclick="pinPress('1')">1</button>
-        <button class="pin-btn" onclick="pinPress('2')">2</button>
-        <button class="pin-btn" onclick="pinPress('3')">3</button>
-        <button class="pin-btn" onclick="pinPress('4')">4</button>
-        <button class="pin-btn" onclick="pinPress('5')">5</button>
-        <button class="pin-btn" onclick="pinPress('6')">6</button>
-        <button class="pin-btn" onclick="pinPress('7')">7</button>
-        <button class="pin-btn" onclick="pinPress('8')">8</button>
-        <button class="pin-btn" onclick="pinPress('9')">9</button>
-        <button class="pin-btn" onclick="closeAdminModal()" style="color:#ccc;font-size:12px">Cancel</button>
-        <button class="pin-btn" onclick="pinPress('0')">0</button>
-        <button class="pin-btn" onclick="pinBackspace()" style="font-size:18px">⌫</button>
-      </div>
+      <button class="btn btn-primary" style="width:100%;font-size:15px;margin-bottom:8px" onclick="_pinSubmit()">Unlock →</button>
       <div id="admin-forgot-wrap" style="text-align:center;display:none">
-        <button onclick="showForgotPin()" style="background:none;border:none;color:#ccc;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;text-decoration:underline;padding:4px 0">Forgot PIN?</button>
+        <button onclick="showForgotPin()" style="background:none;border:none;color:#ccc;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;text-decoration:underline;padding:4px 0">Forgot passphrase?</button>
       </div>
+      <button class="btn btn-ghost" style="width:100%;font-size:13px;margin-top:4px" onclick="closeAdminModal()">Cancel</button>
     </div>
 
     <!-- VIEW: Security question setup (shown after PIN confirmed on first time) -->
@@ -4113,7 +4098,6 @@ function _buildAndStoreResults(tournamentKey) {
 const LS_ADMIN_HASH = 'hf_admin_pin_hash';
 const LS_ADMIN_SQ   = 'hf_admin_sq';
 
-let _pinBuffer   = '';
 let _pinMode     = 'verify';
 let _pinFirst    = '';
 let _adminAuthed = false;
@@ -4223,12 +4207,13 @@ function apClearAll() {
 function apResetPin() {
   closeAdminPortal();
   _pinOnSuccess = null;
-  _pinBuffer = ''; _pinFirst = '';
+  _pinFirst = '';
   _pinMode = 'reset-set';
   _updatePinHeader();
-  _renderPinDots();
+  _clearPinInput();
   document.getElementById('admin-modal').classList.remove('hidden');
   _showView('pin');
+  setTimeout(() => { document.getElementById('admin-pin-input')?.focus(); }, 200);
 }
 
 // ── Pending community course review ──────────────────────────────────────────
@@ -4310,18 +4295,40 @@ function _updatePendingCount() {
   }
 }
 
-// ── PIN modal (kept for authentication flow) ──────────────────────────────────
+// ── PIN modal (authentication flow) ──────────────────────────────────────────
+
+function _getPinInput() {
+  return (document.getElementById('admin-pin-input')?.value || '').trim();
+}
+function _clearPinInput() {
+  const el = document.getElementById('admin-pin-input');
+  if (el) { el.value = ''; }
+}
+function togglePinVisibility() {
+  const el  = document.getElementById('admin-pin-input');
+  const btn = document.getElementById('pin-vis-btn');
+  if (!el) return;
+  const isHidden = el.type === 'password';
+  el.type = isHidden ? 'text' : 'password';
+  if (btn) btn.textContent = isHidden ? '🙈' : '👁';
+}
+
+// Legacy stubs — kept so nothing else errors
+function pinPress(d)    {}
+function pinBackspace() {}
+function _renderPinDots() {}
 
 function _openAdminPin() {
-  _pinBuffer = ''; _pinFirst = ''; _adminAuthed = false;
+  _pinFirst = ''; _adminAuthed = false;
   const hasPin = !!_getAdminHash();
   _pinMode = hasPin ? 'verify' : 'set';
   _updatePinHeader();
-  _renderPinDots();
+  _clearPinInput();
   const forgotWrap = document.getElementById('admin-forgot-wrap');
   if (forgotWrap) forgotWrap.style.display = (hasPin && !!_getAdminSq()) ? 'block' : 'none';
   _showView('pin');
   document.getElementById('admin-modal').classList.remove('hidden');
+  setTimeout(() => { document.getElementById('admin-pin-input')?.focus(); }, 200);
 }
 
 function _showView(name) {
@@ -4329,17 +4336,16 @@ function _showView(name) {
     const el = document.getElementById('admin-view-' + v);
     if (el) el.style.display = v === name ? 'block' : 'none';
   });
-  // Hide the old options view if it still exists
   const optEl = document.getElementById('admin-view-options');
   if (optEl) optEl.style.display = 'none';
 }
 
 function showPinView() {
-  _pinBuffer = '';
+  _clearPinInput();
   _showView('pin');
   _updatePinHeader();
-  _renderPinDots();
   document.getElementById('admin-pw-error').textContent = '';
+  setTimeout(() => { document.getElementById('admin-pin-input')?.focus(); }, 100);
 }
 
 function showForgotPin() {
@@ -4355,8 +4361,8 @@ function showForgotPin() {
   document.getElementById('forgot-question-text').textContent = questions[sq.q] || sq.q;
   document.getElementById('forgot-answer').value = '';
   document.getElementById('forgot-error').textContent = '';
-  document.getElementById('admin-modal-title').textContent = 'Forgot PIN';
-  document.getElementById('admin-modal-sub').textContent = 'Answer your security question to reset your PIN.';
+  document.getElementById('admin-modal-title').textContent = 'Forgot Passphrase';
+  document.getElementById('admin-modal-sub').textContent = 'Answer your security question to reset.';
   document.getElementById('admin-modal-icon').textContent = '🔑';
   _showView('forgot');
 }
@@ -4367,62 +4373,47 @@ function _updatePinHeader() {
   const iconEl  = document.getElementById('admin-modal-icon');
   if (!titleEl) return;
   document.getElementById('admin-pw-error').textContent = '';
-  _renderPinDots();
   if (_pinMode === 'set') {
-    titleEl.textContent = 'Create Admin PIN'; iconEl.textContent = '🔐';
-    subEl.innerHTML = `<span style="color:var(--teal)">First time setup</span> — choose a 4-digit PIN.`;
+    titleEl.textContent = 'Create Passphrase'; iconEl.textContent = '🔐';
+    subEl.innerHTML = `<span style="color:var(--teal)">First time setup</span> — min. 6 characters, use letters, numbers &amp; symbols.`;
   } else if (_pinMode === 'confirm' || _pinMode === 'reset-confirm') {
-    titleEl.textContent = 'Confirm PIN'; iconEl.textContent = '🔐';
-    subEl.textContent = 'Enter your new PIN again to confirm.';
+    titleEl.textContent = 'Confirm Passphrase'; iconEl.textContent = '🔐';
+    subEl.textContent = 'Enter your new passphrase again to confirm.';
   } else if (_pinMode === 'reset-set') {
-    titleEl.textContent = 'New PIN'; iconEl.textContent = '🔢';
-    subEl.textContent = 'Choose a new 4-digit PIN.';
+    titleEl.textContent = 'New Passphrase'; iconEl.textContent = '🔢';
+    subEl.textContent = 'Choose a new passphrase (min. 6 characters).';
   } else {
     titleEl.textContent = 'Administrator Access'; iconEl.textContent = '🔐';
-    subEl.textContent = 'Enter your PIN to continue.';
+    subEl.textContent = 'Enter your passphrase to continue.';
   }
 }
 
-function _renderPinDots() {
-  for (let i = 0; i < 4; i++) {
-    const dot = document.getElementById('pin-dot-' + i);
-    if (!dot) continue;
-    dot.classList.remove('filled','error');
-    if (i < _pinBuffer.length) dot.classList.add('filled');
-  }
-}
-
-function pinPress(digit) {
-  if (_pinBuffer.length >= 4) return;
-  _pinBuffer += digit;
-  _renderPinDots();
-  document.getElementById('admin-pw-error').textContent = '';
-  if (_pinBuffer.length === 4) setTimeout(_pinSubmit, 140);
-}
-
-function pinBackspace() {
-  if (!_pinBuffer.length) return;
-  _pinBuffer = _pinBuffer.slice(0,-1);
-  _renderPinDots();
-  document.getElementById('admin-pw-error').textContent = '';
+function _pinError(msg) {
+  document.getElementById('admin-pw-error').textContent = msg;
+  _clearPinInput();
+  setTimeout(() => { document.getElementById('admin-pin-input')?.focus(); }, 100);
 }
 
 async function _pinSubmit() {
-  const hash = await sha256(_pinBuffer);
+  const val = _getPinInput();
+  if (!val) { _pinError('Please enter a passphrase.'); return; }
+  const hash = await sha256(val);
 
   if (_pinMode === 'set') {
-    _pinFirst = _pinBuffer; _pinBuffer = '';
+    if (val.length < 6) { _pinError('Passphrase must be at least 6 characters.'); return; }
+    _pinFirst = val; _clearPinInput();
     _pinMode  = 'confirm';
     _updatePinHeader();
+    setTimeout(() => { document.getElementById('admin-pin-input')?.focus(); }, 100);
 
   } else if (_pinMode === 'confirm') {
-    if (_pinBuffer !== _pinFirst) {
-      _pinError("PINs don't match. Try again."); _pinMode = 'set'; _pinFirst = '';
+    if (val !== _pinFirst) {
+      _pinError("Passphrases don't match — try again."); _pinMode = 'set'; _pinFirst = '';
     } else {
       try { localStorage.setItem(LS_ADMIN_HASH, hash); } catch(e) {}
-      _pinBuffer = ''; _pinFirst = '';
+      _pinFirst = ''; _clearPinInput();
       document.getElementById('admin-modal-title').textContent = 'Security Question';
-      document.getElementById('admin-modal-sub').textContent = 'Set a recovery question in case you forget your PIN.';
+      document.getElementById('admin-modal-sub').textContent = 'Set a recovery question in case you forget your passphrase.';
       document.getElementById('admin-modal-icon').textContent = '🛡️';
       document.getElementById('sq-answer').value = '';
       document.getElementById('sq-error').textContent = '';
@@ -4430,39 +4421,33 @@ async function _pinSubmit() {
     }
 
   } else if (_pinMode === 'reset-set') {
-    _pinFirst = _pinBuffer; _pinBuffer = '';
+    if (val.length < 6) { _pinError('Passphrase must be at least 6 characters.'); return; }
+    _pinFirst = val; _clearPinInput();
     _pinMode  = 'reset-confirm';
     _updatePinHeader();
+    setTimeout(() => { document.getElementById('admin-pin-input')?.focus(); }, 100);
 
   } else if (_pinMode === 'reset-confirm') {
-    if (_pinBuffer !== _pinFirst) {
-      _pinError("PINs don't match. Try again."); _pinMode = 'reset-set'; _pinFirst = '';
+    if (val !== _pinFirst) {
+      _pinError("Passphrases don't match — try again."); _pinMode = 'reset-set'; _pinFirst = '';
     } else {
       try { localStorage.setItem(LS_ADMIN_HASH, hash); } catch(e) {}
+      _pinFirst = '';
       closeAdminModal();
-      showToast('PIN reset successfully ✓');
+      showToast('Passphrase reset successfully ✓');
     }
 
   } else {
     // verify
     const stored = _getAdminHash();
     if (hash !== stored) {
-      _pinError('Incorrect PIN.');
+      _pinError('Incorrect passphrase.');
     } else {
       _adminAuthed = true;
       closeAdminModal();
       if (_pinOnSuccess) { const fn = _pinOnSuccess; _pinOnSuccess = null; fn(); }
     }
   }
-}
-
-function _pinError(msg) {
-  for (let i = 0; i < 4; i++) {
-    const dot = document.getElementById('pin-dot-' + i);
-    if (dot) { dot.classList.remove('filled'); dot.classList.add('error'); }
-  }
-  document.getElementById('admin-pw-error').textContent = msg;
-  setTimeout(() => { _pinBuffer = ''; _renderPinDots(); }, 700);
 }
 
 async function submitSqSetup() {
@@ -4486,18 +4471,20 @@ async function submitForgotAnswer() {
     return;
   }
   document.getElementById('forgot-error').textContent = '';
-  _pinBuffer = ''; _pinFirst = '';
+  _pinFirst = '';
   _pinMode = 'reset-set';
+  _clearPinInput();
   _showView('pin');
   _updatePinHeader();
+  setTimeout(() => { document.getElementById('admin-pin-input')?.focus(); }, 100);
 }
 
 function closeAdminModal() {
   document.getElementById('admin-modal').classList.add('hidden');
-  _pinBuffer = ''; _pinFirst = ''; _adminAuthed = false;
+  _pinFirst = ''; _adminAuthed = false;
+  _clearPinInput();
   const errEl = document.getElementById('admin-pw-error');
   if (errEl) errEl.textContent = '';
-  _renderPinDots();
 }
 
 // ── Firebase clear ────────────────────────────────────────────────────────────
