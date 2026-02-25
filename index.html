@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0f0f0f"/>
 <title>Hillfred Golf Scorecard</title>
-<meta name="app-version" content="2026.02.24.1"/>
+<meta name="app-version" content="2026.02.25.1"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
   /* ── OUTDOOR OPTIMISED — Hillfred Golf ─────────────────────────────────────
@@ -1848,6 +1848,7 @@ function checkCanStart() {
   const hasP3=hasP3Name&&hasP3Hcp, hasP4=hasP4Name&&hasP4Hcp;
 
   const isPreset = !!(activeTournament && TOURNAMENT[activeTournament]?.preset);
+  const hasMode = !!gameMode;
 
   // For preset tournaments, course/mode are already locked in — only check players
   const ok = isPreset
@@ -3548,7 +3549,8 @@ function startGame(){
 function openLeaderboard() {
   const base = window.location.href.replace(/[^/]*(\?.*)?$/, '');
   const tKey = activeTournament || '';
-  const backUrl = encodeURIComponent(base + 'index.html#play');
+  // Use current page URL directly as back destination — avoids PWA path issues
+  const backUrl = encodeURIComponent(window.location.href.split('?')[0].split('#')[0] + '#play');
   const url = base + 'leaderboard.html?back=' + backUrl + (tKey ? '&t=' + encodeURIComponent(tKey) : '');
   const isPWA = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   if (isPWA) window.location.href = url;
@@ -3558,7 +3560,8 @@ function openLeaderboard() {
 function openMatchGraph() {
   const base = window.location.href.replace(/[^/]*(\?.*)?$/, '');
   const tKey = activeTournament || '';
-  const backUrl = encodeURIComponent(base + 'index.html#play');
+  // Use current page URL directly as back destination — avoids PWA path issues
+  const backUrl = encodeURIComponent(window.location.href.split('?')[0].split('#')[0] + '#play');
   const url = base + 'match-graph.html?back=' + backUrl + (tKey ? '&t=' + encodeURIComponent(tKey) : '');
   const isPWA = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   if (isPWA) window.location.href = url;
@@ -5629,9 +5632,8 @@ setTimeout(() => startTutorial(false), 600);
     checkCanStart();
     setNavScorecard(true);
     showTab('play');
-    return; // skip checkForSavedGame entirely
+    return;
   }
-  // No local save — just show match tab
 })();
 renderMatchBanner();
 checkCanStart();
