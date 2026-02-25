@@ -924,7 +924,7 @@ function parseEntries(modeFilter) {
         netTotal:   last.netTotal||0,
         stabTotal:  last.stabTotal||0,
         par:        last.par||0,
-        mode: meta.mode||last.mode||'stroke',
+        mode: meta.mode||last.mode||(meta.team?'matchplay':'stroke'),
         team: meta.team||last.team||false,
         teamName: last.teamName||null,
         mpStatus:  last.mpStatus||null,

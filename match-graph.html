@@ -207,8 +207,7 @@ onValue(ref(db, `tournaments/${TOURN_KEY}/scores`), snap => {
   lastUpdated = new Date();
   document.getElementById('last-update').textContent =
     'Updated ' + lastUpdated.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  rebuildDropdown();
-  if (selectedKey) renderGraph(selectedKey);
+  rebuildDropdown(); // selects best match and renders automatically
   updateRefreshBadge();
 });
 
@@ -265,6 +264,10 @@ function rebuildDropdown() {
       selectedKey = '';
     }
   }
+  // Always render after rebuilding — selectedKey is now up to date
+  if (selectedKey) renderGraph(selectedKey);
+  else document.getElementById('graph-content').innerHTML =
+    '<div class="empty"><div class="icon">📈</div><p>Select a match to view its worm graph</p></div>';
 }
 
 window.onSelectChange = function(key) {

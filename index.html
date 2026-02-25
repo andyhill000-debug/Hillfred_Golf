@@ -3679,10 +3679,12 @@ function _startFirebaseGame() {
     : [p1.name, p2.name,
        ...(pc >= 3 ? [p3.name] : []),
        ...(pc >= 4 ? [p4.name] : [])];
+  // Guarantee mode is never null — preset tournaments are always matchplay
+  const gameMode = game.mode || (game.tournament ? 'matchplay' : 'stroke');
   window._fbStartGame(game.tournament.key, String(game.id), {
     tournamentLabel: game.tournament.label,
     course: game.courseName || '—',
-    mode: game.mode,
+    mode: gameMode,
     team: team || false,
     team1name: game.tournament.team1name || null,
     team2name: game.tournament.team2name || null,
