@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png"/>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png"/>
 <title>Hillfred Golf Scorecard</title>
-<meta name="app-version" content="2026.02.26.11"/>
+<meta name="app-version" content="2026.02.26.12"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
   /* ── OUTDOOR OPTIMISED — Hillfred Golf ─────────────────────────────────────
@@ -3683,6 +3683,7 @@ function resumeGame(){
   const nextHole=game.holes.find(h=>h.p1==null);
   activeHole=nextHole?nextHole.hole:18;
   document.getElementById('resume-modal').classList.add('hidden');
+  _acquireWakeLock();
   setNavScorecard(true);
   showTab('play');
   renderPlay(); // belt-and-braces — ensure scorecard renders
@@ -3692,6 +3693,7 @@ function resumeGame(){
 /** User chose to discard and start fresh */
 function discardAndNew(){
   clearAutosave();
+  _releaseWakeLock();
   document.getElementById('resume-modal').classList.add('hidden');
   showTab('setup');
 }
@@ -3770,6 +3772,7 @@ function startGame(){
   activeHole=1;
   autosave();
   _startFirebaseGame();
+  _acquireWakeLock();
   setNavScorecard(true);
   showTab('play');
 }
@@ -4486,6 +4489,32 @@ function closeAdminModal() {
   const errEl = document.getElementById('admin-pw-error');
   if (errEl) errEl.textContent = '';
 }
+
+// ── Wake Lock — keep screen on during active game ────────────────────────────
+
+let _wakeLock = null;
+
+async function _acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return; // API not supported — graceful fallback
+  try {
+    _wakeLock = await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release', () => { _wakeLock = null; });
+  } catch(e) {
+    // User denied or OS prevented — silently ignore
+    _wakeLock = null;
+  }
+}
+
+function _releaseWakeLock() {
+  if (_wakeLock) { _wakeLock.release(); _wakeLock = null; }
+}
+
+// Re-acquire when tab becomes visible again (e.g. user unlocks phone mid-round)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && game) {
+    _acquireWakeLock();
+  }
+});
 
 // ── Firebase clear ────────────────────────────────────────────────────────────
 
@@ -5603,10 +5632,10 @@ function finishGame(){
   history.unshift({...game,endTime:new Date().toISOString(),durationMinutes,status,standings});
   try{localStorage.setItem(LS_HISTORY,JSON.stringify(history));}catch(e){}
   if(_tKeyForResults) setTimeout(()=>_buildAndStoreResults(_tKeyForResults), 200);
-  clearAutosave(); // game is complete — remove the in-progress backup
-  // Refresh tournament progress in case this was the last match
+  clearAutosave();
   setTimeout(renderTournamentTab, 200);
   game=null;
+  _releaseWakeLock();
   setNavScorecard(false);
   showTab('history');
 }
@@ -6028,6 +6057,7 @@ if (_returnToPlay) {
     fourPlayer = (g.playerCount || 2) >= 3;
     const nextHole = g.holes.find(h => h.p1 == null);
     activeHole = nextHole ? nextHole.hole : 18;
+    _acquireWakeLock();
     setNavScorecard(true);
     showTab('play');
   } else {
