@@ -1643,8 +1643,8 @@ function _buildGameList() {
       // teamName field set per player tells us which side they're on
       const t1ps = [], t2ps = [];
       players.forEach(([name, pd]) => {
-        const sample = pd.h1 || pd.h2 || pd.h3 || pd.h4 || {};
-        if (sample.teamName === t2) t2ps.push(name.replace(/_/g,' '));
+        let _tn = pd.teamName; if (!_tn) { for(let i=1;i<=18;i++){if(pd[`h${i}`]?.teamName){_tn=pd[`h${i}`].teamName;break;}} }
+        if (_tn === t2) t2ps.push(name.replace(/_/g,' '));
         else t1ps.push(name.replace(/_/g,' ')); // default to T1 if unset
       });
       const label = `${t1ps.join(' & ')||t1}  vs  ${t2ps.join(' & ')||t2}`;
@@ -1721,8 +1721,8 @@ function _renderMatchGraph(key) {
   const t1Players = [], t2Players = [];
   g.players.forEach(([name, pd]) => {
     // Check first available hole data for teamName
-    const sample = pd.h1 || pd.h2 || pd.h3 || pd.h4 || pd.h5 || {};
-    if (sample.teamName && sample.teamName === g.t2name) t2Players.push([name, pd]);
+    let _tn2 = pd.teamName; if (!_tn2) { for(let i=1;i<=18;i++){if(pd[`h${i}`]?.teamName){_tn2=pd[`h${i}`].teamName;break;}} }
+    if (_tn2 && _tn2 === g.t2name) t2Players.push([name, pd]);
     else t1Players.push([name, pd]); // T1 or unset → treat as T1
   });
   if (!t1Players.length) t1Players.push(g.players[0]);

@@ -306,8 +306,13 @@ function buildGameList() {
     if (isTeam) {
       const t1ps = [], t2ps = [];
       players.forEach(([name, pd]) => {
-        const sample = pd.h1 || pd.h2 || pd.h3 || pd.h4 || {};
-        if (sample.teamName === t2) t2ps.push(name.replace(/_/g,' '));
+        let teamName = pd.teamName;
+        if (!teamName) {
+          for (let i = 1; i <= 18; i++) {
+            if (pd[`h${i}`]?.teamName) { teamName = pd[`h${i}`].teamName; break; }
+          }
+        }
+        if (teamName === t2) t2ps.push(name.replace(/_/g,' '));
         else t1ps.push(name.replace(/_/g,' '));
       });
       games.push({
@@ -359,8 +364,14 @@ function renderGraph(key) {
   // Split players into T1 / T2
   const t1Players = [], t2Players = [];
   g.players.forEach(([name, pd]) => {
-    const sample = pd.h1||pd.h2||pd.h3||pd.h4||pd.h5||{};
-    if (sample.teamName && sample.teamName === g.t2name) t2Players.push([name, pd]);
+    // Try to get teamName from any synced hole (h1..h18)
+    let teamName = pd.teamName; // may be at root for newer games
+    if (!teamName) {
+      for (let i = 1; i <= 18; i++) {
+        if (pd[`h${i}`]?.teamName) { teamName = pd[`h${i}`].teamName; break; }
+      }
+    }
+    if (teamName === g.t2name) t2Players.push([name, pd]);
     else t1Players.push([name, pd]);
   });
   if (!t1Players.length) t1Players.push(g.players[0]);
@@ -368,7 +379,9 @@ function renderGraph(key) {
 
   t1Players.sort((a,b) => (b[1].holesPlayed||0) - (a[1].holesPlayed||0));
   const refPlayer   = t1Players[0]?.[1];
-  const holesPlayed = refPlayer?.holesPlayed || 0;
+  // holesPlayed at root (new games) or derived by counting hN keys (old games)
+  const holesPlayed = refPlayer?.holesPlayed ||
+    (() => { let max=0; for(let i=1;i<=18;i++) if(refPlayer?.[`h${i}`]?.mpStatus!=null) max=i; return max; })();
 
   // Infer hole 18 if match finished but last status is still X UP/DOWN
   const lastStatus = refPlayer?.[`h${holesPlayed}`]?.mpStatus || '';

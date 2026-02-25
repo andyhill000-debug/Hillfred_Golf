@@ -342,6 +342,7 @@
       const path = `tournaments/${tournamentKey}/scores/${gameId}/${playerName.replace(/[.#$/\[\]]/g,'_')}`;
       const rootFields = { [`h${holeNum}`]: scores, holesPlayed: holeNum, lastUpdated: Date.now() };
       if (scores.matchIndex != null) rootFields.matchIndex = scores.matchIndex;
+      if (scores.teamName != null)   rootFields.teamName   = scores.teamName;
       update(ref(db, path), rootFields).catch(()=>{});
     };
 
@@ -1584,9 +1585,9 @@ function matchStatus(results) {
               closingHole: i+1, p1w, p2w, played};
     }
     if (played===18) {
-      if(diff>0) return {winner:1,label:'1UP',                  closed:true, leading:0, closingHole:18, p1w, p2w, played};
-      if(diff<0) return {winner:2,label:'1UP',                  closed:true, leading:0, closingHole:18, p1w, p2w, played};
-      return             {winner:0,label:'All Square — Halved', closed:true, leading:0, closingHole:18, p1w, p2w, played};
+      if(diff>0) return {winner:1,label:`${diff} UP`,            closed:true, leading:0, closingHole:18, p1w, p2w, played};
+      if(diff<0) return {winner:2,label:`${-diff} UP`,           closed:true, leading:0, closingHole:18, p1w, p2w, played};
+      return             {winner:0,label:'All Square — Halved',  closed:true, leading:0, closingHole:18, p1w, p2w, played};
     }
   }
 
@@ -3360,7 +3361,7 @@ function checkForSavedGame(){
             console.log('[Hillfred] Cloud save found — restoring');
             try{ localStorage.setItem(LS_AUTOSAVE, JSON.stringify(cloudSave.gameState)); }catch(e){}
             // Clear sessionStorage flag so resume modal shows (not silent resume)
-            sessionStorage.removeItem('hf_session_active');
+            try{localStorage.removeItem('hf_resume_ts');}catch(e){};
             checkForSavedGame();
           } else {
             console.log('[Hillfred] No cloud save found for this device');
@@ -3381,7 +3382,7 @@ function checkForSavedGame(){
   // Use sessionStorage to distinguish a mid-session reload (e.g. returning from leaderboard
   // on iOS PWA) from a genuine app re-open (new session). sessionStorage is cleared when
   // the app is fully closed but persists across same-session reloads.
-  const sessionActive = sessionStorage.getItem('hf_session_active') === '1';
+  const sessionActive = (()=>{ try{ const t=parseInt(localStorage.getItem('hf_resume_ts')||'0'); return Date.now()-t < 3600000; }catch(e){return false;} })();
   if(played > 0 && sessionActive){
     // Same session reload — silent resume, no modal
     console.log('[Hillfred] Same-session reload — auto-resuming at hole', played+1);
@@ -3540,7 +3541,7 @@ function startGame(){
 
 
 function openLeaderboard() {
-  sessionStorage.setItem('hf_session_active', '1');
+  try{localStorage.setItem('hf_resume_ts', String(Date.now()));}catch(e){};
   const base = window.location.href.replace(/[^/]*$/, '');
   const tKey = activeTournament || '';
   const url  = base + 'leaderboard.html' + (tKey ? '?t=' + encodeURIComponent(tKey) : '');
@@ -3548,7 +3549,7 @@ function openLeaderboard() {
 }
 
 function openMatchGraph() {
-  sessionStorage.setItem('hf_session_active', '1');
+  try{localStorage.setItem('hf_resume_ts', String(Date.now()));}catch(e){};
   const base = window.location.href.replace(/[^/]*$/, '');
   const tKey = activeTournament || '';
   const url  = base + 'match-graph.html' + (tKey ? '?t=' + encodeURIComponent(tKey) : '');
@@ -5603,7 +5604,7 @@ checkForSavedGame();
   .catch(()=>{}); // silently fail if offline
 })();
 // Mark this as an active session so reloads within the same session don't show the resume modal
-sessionStorage.setItem('hf_session_active', '1');
+try{localStorage.setItem('hf_resume_ts', String(Date.now()));}catch(e){};
 
 // ═══════════════════════════════════════════
 // TOURNAMENT RESULTS CONSOLIDATION
