@@ -173,16 +173,9 @@ import { getDatabase, ref, onValue }            from 'https://www.gstatic.com/fi
 
 // ── Navigation ───────────────────────────────────────────────────────────────
 window.goBack = function() {
-  // Use ?back= param if provided (set by index.html when navigating here)
   const backParam = new URLSearchParams(location.search).get('back');
-  if (backParam) {
-    window.location.href = decodeURIComponent(backParam);
-  } else if (window.history.length > 1) {
-    window.history.back();
-  } else {
-    const base = window.location.href.replace(/[^/]*$/, '');
-    window.location.href = base + 'index.html#play';
-  }
+  if (backParam) window.location.href = decodeURIComponent(backParam);
+  else window.history.back();
 };
 
 // ── Firebase ──────────────────────────────────────────────────────────────────
