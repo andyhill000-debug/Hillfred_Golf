@@ -662,7 +662,8 @@
   <button class="nav-btn active" id="navbtn-match"      onclick="showTab('match')">⛳ Match</button>
   <button class="nav-btn"        id="navbtn-tournament" onclick="showTab('tournament')">🏆 Tournament</button>
   <button class="nav-btn"        id="navbtn-history"    onclick="showTab('history')">📋 History</button>
-  <button class="nav-btn"        id="navbtn-live"       onclick="openLeaderboard()" style="color:var(--teal)">📡 Live</button>
+  <button class="nav-btn"        id="navbtn-live"       onclick="openLeaderboard()" style="color:var(--teal)">📡 Leaderboard</button>
+  <button class="nav-btn"        id="navbtn-graph"      onclick="openMatchGraph()"  style="color:var(--teal)">📈 Match Graph</button>
 </div>
 
 <!-- MATCH -->
@@ -3408,10 +3409,16 @@ function startGame(){
 
 
 function openLeaderboard() {
-  // Build leaderboard URL relative to current page location
   const base = window.location.href.replace(/[^/]*$/, '');
   const tKey = activeTournament || '';
   const url  = base + 'leaderboard.html' + (tKey ? '?t=' + encodeURIComponent(tKey) : '');
+  window.open(url, '_blank');
+}
+
+function openMatchGraph() {
+  const base = window.location.href.replace(/[^/]*$/, '');
+  const tKey = activeTournament || '';
+  const url  = base + 'match-graph.html' + (tKey ? '?t=' + encodeURIComponent(tKey) : '');
   window.open(url, '_blank');
 }
 
