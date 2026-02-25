@@ -1614,6 +1614,7 @@ function showTab(name) {
   if(name==='match')      { renderMatchBanner(); renderCourseDropdown(); }
 }
 function setMode(m) {
+  if (activeTournament && TOURNAMENT[activeTournament]?.preset) return;
   gameMode=m;
   // Refresh Singles note visibility when mode changes
   _refreshSinglesNote();
@@ -1631,6 +1632,7 @@ function updateSIDisplay(){
   if(csBlock) csBlock.style.display = isMP ? 'none' : 'block';
 }
 function toggleTeam() {
+  if (activeTournament && TOURNAMENT[activeTournament]?.preset) return;
   teamPlay=!teamPlay;
   document.getElementById('team-toggle').classList.toggle('on',teamPlay);
   document.getElementById('team-label').textContent=teamPlay?'On — 4BBB':'Off';
@@ -1724,6 +1726,7 @@ function _syncPlayerLabels(){
   if(p4sl) p4sl.textContent = isTeam ? 'Select Partner' : 'Select Player';
 }
 function toggleFourPlayer() {
+  if (activeTournament && TOURNAMENT[activeTournament]?.preset) return;
   fourPlayer=!fourPlayer;
   document.getElementById('fourplayer-toggle').classList.toggle('on',fourPlayer);
   document.getElementById('fourplayer-label').textContent=fourPlayer?'On':'Off';
@@ -1770,6 +1773,7 @@ function toggleFourPlayer() {
   checkCanStart();
 }
 function toggleSkins() {
+  if (activeTournament && TOURNAMENT[activeTournament]?.preset) return;
   skinsPlay=!skinsPlay;
   document.getElementById('skins-toggle').classList.toggle('on',skinsPlay);
   document.getElementById('skins-label').textContent=skinsPlay?'On':'Off';
@@ -1855,6 +1859,8 @@ let _tFormType = 'singles';  // 'singles' | 'teams'
 let _teamsMatchFmt = 'singles'; // 'singles' | '4bbb' — per-match format for teams tournaments
 
 function setTeamsMatchFormat(fmt) {
+  // Preset tournaments have a fixed format — ignore user attempts to change it
+  if (activeTournament && TOURNAMENT[activeTournament]?.preset) return;
   _teamsMatchFmt = fmt;
   const is4bbb = fmt === '4bbb';
 
@@ -2123,7 +2129,7 @@ function renderMatchBanner() {
     document.getElementById('match-tnmt-fmt').textContent =
       isTeams ? `Teams · ${_teamsMatchFmt === '4bbb' ? '4BBB' : 'Singles Matchplay'}` : 'Singles Tournament';
     banner.style.display = 'block';
-    if (fmtRow) fmtRow.style.display = isTeams ? 'block' : 'none';
+    if (fmtRow) fmtRow.style.display = (isTeams && !t.preset) ? 'block' : 'none';
     // Hide 3-4 player toggle when a teams tournament is active — irrelevant and confusing
     const fpBox = document.getElementById('fourplayer-box');
     if (fpBox) fpBox.style.display = isTeams ? 'none' : '';
