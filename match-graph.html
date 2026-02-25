@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Match Graph · SGG 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --teal:   #00e8bb;
+    --red:    #ff5a5a;
+    --gold:   #e2b84a;
+    --bg:     #0a0a0a;
+    --card:   #111;
+    --border: #222;
+    --text:   #ccc;
+    --hf-teal:#00d4aa;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', Arial, sans-serif; }
+
+  /* ── Header ── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    background: #0d0d0d; gap: 12px;
+  }
+  .header-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .header-title { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; color: #fff; letter-spacing: -0.3px; }
+  .header-subtitle { font-size: 10px; color: #555; letter-spacing: 1px; text-transform: uppercase; margin-top: 1px; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); flex-shrink: 0;
+    animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.3)} }
+  .refresh-badge {
+    font-size: 10px; color: #555; background: #161616; border: 1px solid #222;
+    border-radius: 6px; padding: 3px 8px; white-space: nowrap; flex-shrink: 0;
+  }
+  .refresh-badge.soon { color: var(--teal); border-color: rgba(0,232,187,.3); }
+
+  /* ── Match selector ── */
+  .selector-bar {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .selector-bar select {
+    flex: 1; min-width: 0; background: #161616; border: 1px solid #2a2a2a; color: #ccc;
+    font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 7px 10px;
+    border-radius: 8px; outline: none; cursor: pointer;
+  }
+  .filter-pills { display: flex; gap: 5px; }
+  .pill {
+    font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+    padding: 5px 10px; border-radius: 20px; border: 1px solid #2a2a2a;
+    background: transparent; color: #555; cursor: pointer; transition: all .15s;
+  }
+  .pill.active { background: rgba(0,232,187,.12); border-color: var(--teal); color: var(--teal); }
+
+  /* ── Graph card ── */
+  .graph-wrap { padding: 12px 14px; }
+  .mg-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+  }
+  .mg-card-header {
+    padding: 14px 16px 10px; border-bottom: 1px solid var(--border);
+    border-left: 4px solid var(--teal);
+  }
+  .mg-matchlabel { font-size: 9px; color: #555; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .mg-players { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mg-p1 { color: var(--teal); font-weight: 700; font-size: 14px; }
+  .mg-p2 { color: var(--red);  font-weight: 700; font-size: 14px; }
+  .mg-vs { color: #444; font-size: 11px; font-weight: 700; }
+  .mg-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: .5px; padding: 3px 9px;
+    border-radius: 20px; border: 1px solid #333; color: #aaa; background: #161616;
+  }
+  .mg-badge.live   { color: var(--teal); border-color: rgba(0,232,187,.4); background: rgba(0,232,187,.06); }
+  .mg-badge.t1win  { color: var(--teal); border-color: rgba(0,232,187,.4); }
+  .mg-badge.t2win  { color: var(--red);  border-color: rgba(255,90,90,.4); }
+  .mg-badge.halved { color: var(--gold); border-color: rgba(226,184,74,.4); }
+  .mg-graph-area { padding: 12px 8px 0; }
+  .mg-hole-strip { display: flex; flex-wrap: wrap; gap: 3px; padding: 8px 16px; }
+  .mg-hole-dot {
+    width: 22px; height: 22px; border-radius: 5px; border: 1.5px solid;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; color: #000;
+  }
+  .mg-legend { display: flex; flex-wrap: wrap; gap: 12px; padding: 6px 16px 14px; font-size: 10px; color: #666; }
+  .mg-leg-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+  /* ── Empty state ── */
+  .empty {
+    text-align: center; padding: 60px 20px; color: #444;
+  }
+  .empty .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty p { font-size: 13px; }
+
+  /* ── Status bar ── */
+  .status-bar {
+    padding: 8px 16px; font-size: 10px; color: #444;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid #161616;
+  }
+  .conn-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; background: #333; }
+  .conn-dot.online { background: var(--teal); }
+
+  /* ── Powered by ── */
+  .powered { text-align: center; padding: 10px; font-size: 9px; color: #2a2a2a; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-logo">
+    <!-- Hillfred icon (dark bg variant) -->
+    <svg width="24" height="24" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(60,60)"><g transform="rotate(45 0 0)">
+        <rect x="-36" y="-36" width="24" height="24" fill="#fff" rx="2"/>
+        <rect x="-6"  y="-36" width="24" height="24" fill="#00d4aa" rx="2"/>
+        <rect x="24"  y="-36" width="24" height="24" fill="#fff" rx="2"/>
+        <rect x="-36" y="-6"  width="24" height="24" fill="#fff" rx="2"/>
+        <rect x="-6"  y="-6"  width="24" height="24" fill="#fff" rx="2"/>
+        <rect x="24"  y="-6"  width="24" height="24" fill="#fff" rx="2"/>
+        <rect x="-36" y="24"  width="24" height="24" fill="#fff" rx="2"/>
+        <rect x="-6"  y="24"  width="24" height="24" fill="#fff" rx="2"/>
+        <rect x="24"  y="24"  width="24" height="24" fill="#00d4aa" rx="2"/>
+      </g></g>
+    </svg>
+    <div>
+      <div class="header-title">SGG 2026 · Match Graph</div>
+      <div class="header-subtitle">Live worm tracker</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="live-dot" id="conn-dot-anim" style="display:none"></div>
+    <div class="refresh-badge" id="refresh-badge">Connecting…</div>
+  </div>
+</div>
+
+<!-- Match selector -->
+<div class="selector-bar">
+  <div class="filter-pills">
+    <button class="pill active" id="pill-all"      onclick="setFilter('all')">All</button>
+    <button class="pill"        id="pill-live"     onclick="setFilter('live')">● Live</button>
+    <button class="pill"        id="pill-finished" onclick="setFilter('finished')">✓ Done</button>
+  </div>
+  <select id="match-select" onchange="onSelectChange(this.value)">
+    <option value="">— Loading matches… —</option>
+  </select>
+</div>
+
+<!-- Graph -->
+<div class="graph-wrap">
+  <div id="graph-content">
+    <div class="empty"><div class="icon">📈</div><p>Connecting to Firebase…</p></div>
+  </div>
+</div>
+
+<!-- Status -->
+<div class="status-bar">
+  <span><span class="conn-dot" id="conn-dot"></span><span id="conn-label">Connecting</span></span>
+  <span id="last-update">—</span>
+</div>
+
+<div class="powered">POWERED BY HILLFRED</div>
+
+<script type="module">
+import { initializeApp }                        from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, onValue }            from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ── Firebase ──────────────────────────────────────────────────────────────────
+const app = initializeApp({
+  apiKey:            'AIzaSyBg_tfMOtzhcpMlTl-2o_2bfs0Dos8EHPM',
+  authDomain:        'hillfred-golf.firebaseapp.com',
+  databaseURL:       'https://hillfred-golf-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'hillfred-golf',
+  storageBucket:     'hillfred-golf.firebasestorage.app',
+  messagingSenderId: '1047089194868',
+  appId:             '1:1047089194868:web:3f5fab20d2bc15154f2e21'
+});
+const db = getDatabase(app);
+
+// ── URL params ────────────────────────────────────────────────────────────────
+const params      = new URLSearchParams(location.search);
+const TOURN_KEY   = params.get('t') || 'sgg_2026_day1';
+const INIT_MATCH  = params.get('m') || '';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let liveScores    = {};
+let selectedKey   = INIT_MATCH;
+let filter        = 'all';
+let connected     = false;
+let lastUpdated   = null;
+
+// ── Connection monitor ────────────────────────────────────────────────────────
+onValue(ref(db, '.info/connected'), snap => {
+  connected = !!snap.val();
+  document.getElementById('conn-dot').className   = 'conn-dot' + (connected ? ' online' : '');
+  document.getElementById('conn-label').textContent = connected ? 'Live' : 'Reconnecting…';
+  document.getElementById('conn-dot-anim').style.display = connected ? 'block' : 'none';
+});
+
+// ── Main scores subscription — fires on EVERY Firebase write ─────────────────
+onValue(ref(db, `tournaments/${TOURN_KEY}/scores`), snap => {
+  liveScores  = snap.val() || {};
+  lastUpdated = new Date();
+  document.getElementById('last-update').textContent =
+    'Updated ' + lastUpdated.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  rebuildDropdown();
+  if (selectedKey) renderGraph(selectedKey);
+  updateRefreshBadge();
+});
+
+// ── 10-second countdown badge (cosmetic — real updates come from onValue) ────
+let _countdown = 10;
+setInterval(() => {
+  _countdown = Math.max(0, _countdown - 1);
+  updateRefreshBadge();
+  if (_countdown === 0) _countdown = 10;
+}, 1000);
+
+function updateRefreshBadge() {
+  const el = document.getElementById('refresh-badge');
+  if (!connected) { el.textContent = 'Reconnecting…'; el.className = 'refresh-badge'; return; }
+  el.textContent = `Live · ${_countdown}s`;
+  el.className   = 'refresh-badge' + (_countdown <= 3 ? ' soon' : '');
+}
+
+// ── Filter ────────────────────────────────────────────────────────────────────
+window.setFilter = function(f) {
+  filter = f;
+  ['all','live','finished'].forEach(v => {
+    document.getElementById(`pill-${v}`).classList.toggle('active', v === f);
+  });
+  rebuildDropdown();
+};
+
+// ── Dropdown ──────────────────────────────────────────────────────────────────
+function rebuildDropdown() {
+  const sel  = document.getElementById('match-select');
+  const prev = sel.value || selectedKey;
+  sel.innerHTML = '<option value="">— Select a match —</option>';
+
+  const games = buildGameList();
+  const shown = games.filter(g => filter === 'all' || g.status === filter);
+  shown.forEach(g => {
+    const opt       = document.createElement('option');
+    opt.value       = g.key;
+    opt.textContent = (g.status === 'live' ? '● ' : '✓ ') + g.label;
+    sel.appendChild(opt);
+  });
+
+  // Auto-select: restore previous, or pick first live match, or first overall
+  if (prev && [...sel.options].some(o => o.value === prev)) {
+    sel.value   = prev;
+    selectedKey = prev;
+  } else {
+    const firstLive = shown.find(g => g.status === 'live');
+    const first     = firstLive || shown[0];
+    if (first) {
+      sel.value   = first.key;
+      selectedKey = first.key;
+    } else {
+      selectedKey = '';
+    }
+  }
+}
+
+window.onSelectChange = function(key) {
+  selectedKey = key;
+  if (key) renderGraph(key);
+  else document.getElementById('graph-content').innerHTML =
+    '<div class="empty"><div class="icon">📈</div><p>Select a match to view its worm graph</p></div>';
+};
+
+// ── Game list builder ─────────────────────────────────────────────────────────
+function buildGameList() {
+  const games = [];
+  Object.entries(liveScores).forEach(([gameId, gd]) => {
+    if (!gd || !gd._meta) return;
+    const meta    = gd._meta;
+    const players = Object.entries(gd).filter(([k]) => k !== '_meta');
+    if (!players.length) return;
+    const t1 = meta.team1name || 'Team 1';
+    const t2 = meta.team2name || 'Team 2';
+    const isTeam = meta.team || false;
+
+    if (isTeam) {
+      const t1ps = [], t2ps = [];
+      players.forEach(([name, pd]) => {
+        const sample = pd.h1 || pd.h2 || pd.h3 || pd.h4 || {};
+        if (sample.teamName === t2) t2ps.push(name.replace(/_/g,' '));
+        else t1ps.push(name.replace(/_/g,' '));
+      });
+      games.push({
+        key: `${gameId}_4bbb`, gameId, matchIndex: 1, isTeam: true,
+        label:  `${t1ps.join(' & ')||t1}  vs  ${t2ps.join(' & ')||t2}`,
+        status: normStatus(meta.status),
+        t1name: t1, t2name: t2, t1ps, t2ps, players,
+        mode: meta.mode, meta
+      });
+    } else if (meta.playerCount >= 4) {
+      const m1 = players.filter(([,pd]) => (pd.matchIndex||1) === 1);
+      const m2 = players.filter(([,pd]) => pd.matchIndex === 2);
+      if (m1.length) games.push({
+        key: `${gameId}_m1`, gameId, matchIndex: 1, isTeam: false,
+        label:  `${m1[0]?.[0]?.replace(/_/g,' ')||'P1'} vs ${m1[1]?.[0]?.replace(/_/g,' ')||'P2'}`,
+        status: normStatus(meta.status), t1name: t1, t2name: t2,
+        players: m1, mode: meta.mode, meta
+      });
+      if (m2.length) games.push({
+        key: `${gameId}_m2`, gameId, matchIndex: 2, isTeam: false,
+        label:  `${m2[0]?.[0]?.replace(/_/g,' ')||'P3'} vs ${m2[1]?.[0]?.replace(/_/g,' ')||'P4'} (M2)`,
+        status: normStatus(meta.status), t1name: t1, t2name: t2,
+        players: m2, mode: meta.mode, meta
+      });
+    } else {
+      games.push({
+        key: `${gameId}_m1`, gameId, matchIndex: 1, isTeam: false,
+        label:  `${players[0]?.[0]?.replace(/_/g,' ')||'P1'} vs ${players[1]?.[0]?.replace(/_/g,' ')||'P2'}`,
+        status: normStatus(meta.status), t1name: t1, t2name: t2,
+        players, mode: meta.mode, meta
+      });
+    }
+  });
+  games.sort((a,b) => (a.status==='live'?0:1) - (b.status==='live'?0:1) || a.label.localeCompare(b.label));
+  return games;
+}
+
+function normStatus(s) { return s === 'finished' ? 'finished' : 'live'; }
+
+// ── Render graph ──────────────────────────────────────────────────────────────
+function renderGraph(key) {
+  const g = buildGameList().find(x => x.key === key);
+  if (!g) {
+    document.getElementById('graph-content').innerHTML =
+      '<div class="empty"><div class="icon">⚠️</div><p>Match not found</p></div>';
+    return;
+  }
+
+  // Split players into T1 / T2
+  const t1Players = [], t2Players = [];
+  g.players.forEach(([name, pd]) => {
+    const sample = pd.h1||pd.h2||pd.h3||pd.h4||pd.h5||{};
+    if (sample.teamName && sample.teamName === g.t2name) t2Players.push([name, pd]);
+    else t1Players.push([name, pd]);
+  });
+  if (!t1Players.length) t1Players.push(g.players[0]);
+  if (!t2Players.length && g.players.length > 1) t2Players.push(g.players[1]);
+
+  t1Players.sort((a,b) => (b[1].holesPlayed||0) - (a[1].holesPlayed||0));
+  const refPlayer   = t1Players[0]?.[1];
+  const holesPlayed = refPlayer?.holesPlayed || 0;
+
+  // Infer hole 18 if match finished but last status is still X UP/DOWN
+  const lastStatus = refPlayer?.[`h${holesPlayed}`]?.mpStatus || '';
+  const isFullMatch = g.status === 'finished' && holesPlayed > 0 && holesPlayed < 18 &&
+    (lastStatus.includes(' DOWN') || lastStatus.includes(' UP')) &&
+    !lastStatus.startsWith('W ') && !lastStatus.startsWith('L ');
+  const effectiveHoles = isFullMatch ? 18 : holesPlayed;
+
+  // Build worm from T1 player mpStatus
+  const wormData = [], holeResults = [];
+  for (let i = 1; i <= 18; i++) {
+    const hd  = refPlayer?.[`h${i}`];
+    const ext = isFullMatch && i === 18 && i > holesPlayed;
+    if (hd && hd.mpStatus) {
+      const st = hd.mpStatus;
+      if (st.startsWith('W ')) {
+        const n = parseInt(st.replace('W ',''));
+        wormData.push(isNaN(n) ? 0 : n); holeResults.push('W');
+      } else if (st.startsWith('L ')) {
+        const n = parseInt(st.replace('L ',''));
+        wormData.push(isNaN(n) ? 0 : -(n)); holeResults.push('L');
+      } else if (st.includes('All Square') || st.includes('Halved')) {
+        wormData.push(0); holeResults.push('H');
+      } else if (st.includes(' UP')) {
+        const n = parseInt(st); wormData.push(isNaN(n) ? 0 : n); holeResults.push('H');
+      } else if (st.includes(' DOWN')) {
+        const n = parseInt(st); wormData.push(isNaN(n) ? 0 : -n); holeResults.push('H');
+      } else {
+        const closed = st.match(/^(\d+)&(\d+)$/);
+        if (closed) {
+          const margin = parseInt(closed[1]);
+          wormData.push(margin > 0 ? margin : 0); holeResults.push('W');
+        } else {
+          wormData.push(null); holeResults.push(null);
+        }
+      }
+    } else if (ext) {
+      wormData.push(wormData[wormData.length-1] ?? 0); holeResults.push('H');
+    } else {
+      wormData.push(null); holeResults.push(null);
+    }
+  }
+
+  // Display slice
+  const displayData = wormData.map((v,i) => i < effectiveHoles ? v : null);
+  let lastRealIdx = -1;
+  displayData.forEach((v,i) => { if (v !== null) lastRealIdx = i; });
+  const playedDisplay = lastRealIdx + 1;
+
+  // Result badge
+  const finalStatus = refPlayer?.[`h${holesPlayed}`]?.mpStatus || '';
+  const isLive = g.status !== 'finished';
+  const lastVal = lastRealIdx >= 0 ? (displayData[lastRealIdx] ?? 0) : 0;
+  let resultLabel = '', resultClass = 'done';
+  if (isLive) {
+    resultClass = 'live'; resultLabel = finalStatus || 'Live';
+  } else if (finalStatus.startsWith('W ')) {
+    resultLabel = `${g.t1name} ${finalStatus.replace('W ','')}`; resultClass = 't1win';
+  } else if (finalStatus.startsWith('L ')) {
+    resultLabel = `${g.t2name} ${finalStatus.replace('L ','')}`; resultClass = 't2win';
+  } else if (finalStatus.includes('Halved') || finalStatus.includes('All Square')) {
+    resultLabel = 'Halved'; resultClass = 'halved';
+  } else {
+    resultLabel = finalStatus || '—';
+  }
+
+  const t1Names = (g.t1ps?.length) ? g.t1ps.join(' & ')
+    : t1Players.map(([n])=>n.replace(/_/g,' ')).join(' & ') || g.t1name;
+  const t2Names = (g.t2ps?.length) ? g.t2ps.join(' & ')
+    : t2Players.map(([n])=>n.replace(/_/g,' ')).join(' & ') || g.t2name;
+
+  const borderCol = lastVal > 0 ? 'var(--teal)' : lastVal < 0 ? 'var(--red)' : 'var(--gold)';
+
+  const svgWorm = buildWormSVG(
+    displayData.slice(0, playedDisplay),
+    holeResults.slice(0, playedDisplay),
+    isLive, g.t1name, g.t2name
+  );
+
+  const stripHtml = holeResults.map((res,i) => {
+    const played = res !== null;
+    const col = res==='W'?'var(--teal)':res==='L'?'var(--red)':res==='H'?'var(--gold)':'#111';
+    return `<div class="mg-hole-dot" style="background:${col};border-color:${played?col:'#1e1e1e'};opacity:${played?0.85:0.3};color:${played?'#000':'#333'}">${i+1}</div>`;
+  }).join('');
+
+  document.getElementById('graph-content').innerHTML = `
+    <div class="mg-card">
+      <div class="mg-card-header" style="border-left-color:${borderCol}">
+        <div class="mg-matchlabel">${g.isTeam?'4BBB Matchplay':'Singles Matchplay'} · ${g.t1name} vs ${g.t2name}</div>
+        <div class="mg-players">
+          <span class="mg-p1">${t1Names}</span>
+          <span class="mg-vs">vs</span>
+          <span class="mg-p2">${t2Names}</span>
+          <span class="mg-badge ${resultClass}" style="margin-left:auto">${isLive?'<span style="font-size:9px">● </span>':''}${resultLabel}</span>
+        </div>
+        <div style="font-size:10px;color:#555;margin-top:6px">Thru ${playedDisplay} holes${!isLive?' · Final':''}</div>
+      </div>
+      <div class="mg-graph-area">${svgWorm}</div>
+      <div style="padding:4px 16px 6px;font-size:10px;color:#444">↑ ${g.t1name} leading · ↓ ${g.t2name} leading</div>
+      <div class="mg-hole-strip">${stripHtml}</div>
+      <div class="mg-legend">
+        <span><span class="mg-leg-dot" style="background:var(--teal)"></span>${g.t1name} wins hole</span>
+        <span><span class="mg-leg-dot" style="background:var(--red)"></span>${g.t2name} wins hole</span>
+        <span><span class="mg-leg-dot" style="background:var(--gold)"></span>Halved</span>
+        <span><span class="mg-leg-dot" style="background:#1a1a1a;border:1px solid #333;display:inline-block"></span>Not played</span>
+      </div>
+    </div>`;
+}
+
+// ── Worm SVG builder ──────────────────────────────────────────────────────────
+function buildWormSVG(data, results, isLive, t1name, t2name) {
+  const W=560, H=200, PAD={top:28,right:24,bottom:36,left:40};
+  const iW=W-PAD.left-PAD.right, iH=H-PAD.top-PAD.bottom;
+  const maxD = Math.max(3, ...data.filter(v=>v!==null).map(Math.abs), 1);
+  const midY = PAD.top + iH/2;
+  const xS = i => PAD.left + (i/18)*iW;
+  const yS = v => midY - (v/maxD)*(iH/2);
+  const holeCol = r => r==='W'?'#00e8bb':r==='L'?'#ff5a5a':'#e2b84a';
+
+  const validPts = data.map((v,i) => v!==null ? {x:xS(i+1),y:yS(v),v,res:results[i]} : null).filter(Boolean);
+  if (!validPts.length) return `<svg viewBox="0 0 560 200" style="width:100%;height:auto">
+    <text x="280" y="100" text-anchor="middle" fill="#555" font-family="'DM Sans',sans-serif" font-size="13">No data yet</text></svg>`;
+
+  const origin = {x:xS(0),y:midY};
+  const allPts = [origin, ...validPts];
+
+  const segments = allPts.slice(0,-1).map((p,i) => {
+    const next=allPts[i+1], col=next.res?holeCol(next.res):'#555';
+    return `<line x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${next.x.toFixed(1)}" y2="${next.y.toFixed(1)}" stroke="${col}" stroke-width="2.5" stroke-linecap="round"/>`;
+  }).join('');
+
+  const fillD = allPts.map((p,i)=>`${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+    + ` L${validPts[validPts.length-1].x.toFixed(1)},${midY} L${origin.x.toFixed(1)},${midY} Z`;
+
+  const lastPt = validPts[validPts.length-1];
+  const lastCol = lastPt ? holeCol(lastPt.res) : '#e2b84a';
+  const ticks = [-maxD,-2,-1,0,1,2,maxD].filter((v,i,a)=>a.indexOf(v)===i);
+
+  const gridLines = ticks.map(v => {
+    const y=yS(v);
+    if (y<PAD.top-2||y>H-PAD.bottom+2) return '';
+    return `<line x1="${PAD.left}" y1="${y.toFixed(1)}" x2="${W-PAD.right}" y2="${y.toFixed(1)}" stroke="${v===0?'#3a3a3a':'#252525'}" stroke-width="${v===0?1.5:.5}"/>`;
+  }).join('');
+
+  const holeLines = Array.from({length:18},(_,i)=>
+    `<line x1="${xS(i+1).toFixed(1)}" y1="${PAD.top}" x2="${xS(i+1).toFixed(1)}" y2="${H-PAD.bottom}" stroke="${i===8?'#444':'#2a2a2a'}" stroke-width="${i===8?1.5:.5}"/>`
+  ).join('');
+
+  const dots = validPts.map(p =>
+    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${holeCol(p.res)}" stroke="#0a0a0a" stroke-width="1.5"/>`
+  ).join('');
+
+  const liveRing = isLive && lastPt
+    ? `<circle cx="${lastPt.x.toFixed(1)}" cy="${lastPt.y.toFixed(1)}" r="9" fill="none" stroke="${lastCol}" stroke-width="1.5" opacity="0.3">
+        <animate attributeName="r" values="9;15;9" dur="1.5s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values="0.3;0;0.3" dur="1.5s" repeatCount="indefinite"/>
+       </circle>` : '';
+
+  const yLabels = ticks.map(v => {
+    const y=yS(v);
+    if (y<PAD.top||y>H-PAD.bottom) return '';
+    return `<text x="${PAD.left-5}" y="${(y+4).toFixed(1)}" text-anchor="end" fill="#fff" font-size="10" font-weight="700" font-family="'DM Sans',sans-serif">${v===0?'A/S':Math.abs(v)}</text>`;
+  }).join('');
+
+  const xLabels = [
+    `<text x="${xS(0).toFixed(1)}" y="${H-PAD.bottom+14}" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="'DM Sans',sans-serif">0</text>`,
+    ...Array.from({length:18},(_,i)=>
+      `<text x="${xS(i+1).toFixed(1)}" y="${H-PAD.bottom+14}" text-anchor="middle" fill="${i<data.length&&data[i]!==null?'#fff':'#555'}" font-size="10" font-weight="700" font-family="'DM Sans',sans-serif">${i+1}</text>`
+    )
+  ].join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
+  <rect width="${W}" height="${H}" fill="transparent"/>
+  ${gridLines}${holeLines}
+  <text x="${xS(4.5).toFixed(1)}" y="${PAD.top-10}" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="'DM Sans',sans-serif" letter-spacing="1">FRONT 9</text>
+  <text x="${xS(13.5).toFixed(1)}" y="${PAD.top-10}" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="'DM Sans',sans-serif" letter-spacing="1">BACK 9</text>
+  <path d="${fillD}" fill="#fff" opacity="0.02"/>
+  ${segments}${liveRing}${dots}${yLabels}${xLabels}
+  <text x="14" y="${H/2}" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="'DM Sans',sans-serif" letter-spacing="1" transform="rotate(-90,14,${H/2})">POSITION</text>
+  <text x="${W/2}" y="${H-3}" text-anchor="middle" fill="#fff" font-size="10" font-weight="700" font-family="'DM Sans',sans-serif" letter-spacing="1">HOLE</text>
+  <text x="${PAD.left+4}" y="${PAD.top+10}" fill="#00e8bb" font-size="9" font-weight="700" font-family="'DM Sans',sans-serif" opacity="0.8">▲ ${t1name}</text>
+  <text x="${PAD.left+4}" y="${H-PAD.bottom-5}" fill="#ff5a5a" font-size="9" font-weight="700" font-family="'DM Sans',sans-serif" opacity="0.8">▼ ${t2name}</text>
+</svg>`;
+}
+</script>
+</body>
+</html>
