@@ -112,9 +112,11 @@
 
 <!-- Header -->
 <div class="header">
-  <div class="header-logo">
-    <!-- Hillfred icon (dark bg variant) -->
-    <svg width="24" height="24" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <button id="back-btn" onclick="goBack()" style="background:rgba(0,232,187,.07);border:1.5px solid rgba(0,232,187,.2);border-radius:8px;color:var(--teal);font-size:12px;font-weight:700;padding:6px 11px;cursor:pointer;flex-shrink:0;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px;letter-spacing:.3px">
+    ← Scorecard
+  </button>
+  <div class="header-logo" style="flex:1;justify-content:center">
+    <svg width="20" height="20" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
       <g transform="translate(60,60)"><g transform="rotate(45 0 0)">
         <rect x="-36" y="-36" width="24" height="24" fill="#fff" rx="2"/>
         <rect x="-6"  y="-36" width="24" height="24" fill="#00d4aa" rx="2"/>
@@ -168,6 +170,18 @@
 <script type="module">
 import { initializeApp }                        from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref, onValue }            from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+window.goBack = function() {
+  // If there's history (browser tab), go back
+  if (window.history.length > 1) {
+    window.history.back();
+  } else {
+    // PWA standalone — navigate to index.html, preserving same base URL
+    const base = window.location.href.replace(/[^/]*$/, '');
+    window.location.href = base + 'index.html#play';
+  }
+};
 
 // ── Firebase ──────────────────────────────────────────────────────────────────
 const app = initializeApp({
