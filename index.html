@@ -4511,17 +4511,20 @@ function renderScorecard(results, rawResults){
       </tr>`
     : `<tr>
         <th style="text-align:left">H</th><th>Par</th><th>SI</th>
-        ${/* All formats: interleaved Gross + Net/Pts per player, Res last for matchplay */
-          `<th style="color:var(--teal)">${p1s}</th><th style="color:var(--teal);font-size:9px">${isStab?'Pts':'Net'}</th>`
-          + (team ? `<th style="color:var(--teal)">${p3s}</th><th style="color:var(--teal);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
-          + `<th style="color:var(--red)">${p2s}</th><th style="color:var(--red);font-size:9px">${isStab?'Pts':'Net'}</th>`
-          + (team ? `<th style="color:var(--red)">${p4s}</th><th style="color:var(--red);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
-          /* Res1 — always shown for matchplay (separator between M1 and M2 in fp4 mode) */
-          + (isMatch ? '<th style="color:#ccc;font-size:9px">R1</th>' : '')
-          /* Match 2 columns — only in fourPlayer non-team 4-player mode */
-          + (_fp&&!team&&_pc4>=3 ? `<th style="color:var(--teal)">${p3s}</th><th style="color:var(--teal);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
-          + (_fp&&!team&&_pc4>=4 ? `<th style="color:var(--red)">${p4s}</th><th style="color:var(--red);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
-          + (isMatch&&_fp&&!team&&_pc4>=4 ? '<th style="color:#ccc;font-size:9px">R2</th>' : '')
+        ${/* Team 4BBB matchplay: compact — just Gross per player + Result (no Net col) */
+          (isMatch && team)
+          ? `<th style="color:var(--teal)">${p1s}</th><th style="color:var(--teal)">${p3s}</th>`
+            + `<th style="color:var(--red)">${p2s}</th><th style="color:var(--red)">${p4s}</th>`
+            + '<th style="color:#ccc;font-size:9px">R</th>'
+          /* All other formats: interleaved Gross + Net/Pts per player, Res last for matchplay */
+          : `<th style="color:var(--teal)">${p1s}</th><th style="color:var(--teal);font-size:9px">${isStab?'Pts':'Net'}</th>`
+            + (team ? `<th style="color:var(--teal)">${p3s}</th><th style="color:var(--teal);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
+            + `<th style="color:var(--red)">${p2s}</th><th style="color:var(--red);font-size:9px">${isStab?'Pts':'Net'}</th>`
+            + (team ? `<th style="color:var(--red)">${p4s}</th><th style="color:var(--red);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
+            + (isMatch ? '<th style="color:#ccc;font-size:9px">R1</th>' : '')
+            + (_fp&&!team&&_pc4>=3 ? `<th style="color:var(--teal)">${p3s}</th><th style="color:var(--teal);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
+            + (_fp&&!team&&_pc4>=4 ? `<th style="color:var(--red)">${p4s}</th><th style="color:var(--red);font-size:9px">${isStab?'Pts':'Net'}</th>` : '')
+            + (isMatch&&_fp&&!team&&_pc4>=4 ? '<th style="color:#ccc;font-size:9px">R2</th>' : '')
         }
       </tr>`;
 
@@ -4637,17 +4640,20 @@ function renderScorecard(results, rawResults){
         : `<td>${h.hole}</td>`;
       rows+=`<tr class="${isAct?'sc-active':''}" onclick="setHole(${h.hole})">
         ${holeCell}<td style="color:var(--gold)">${h.par}</td><td style="color:#ccc;font-size:11px;font-weight:600">${si}</td>
-        ${/* Match 1: p1 gross/net, p2 gross/net, Res1 */
-          scoreCell(h.p1,h.par) + (isStab ? ptsCell(sb1) : `<td style="text-align:center">${netScoreDeco(n1,h.par)}</td>`)
-          + (team ? scoreCell(h.p3,h.par) + (isStab ? ptsCell(sb3fp) : `<td style="text-align:center">${netScoreDeco((h.p3!=null&&h.p3!=='P')?h.p3-strokesOnHole(p3.hcp,_mpBase,si,si2h,si3h):null,h.par)}</td>`) : '')
-          + scoreCell(h.p2,h.par) + (isStab ? ptsCell(sb2) : `<td style="text-align:center">${netScoreDeco(n2,h.par)}</td>`)
-          + (team ? scoreCell(h.p4,h.par) + (isStab ? ptsCell(sb4fp) : `<td style="text-align:center">${netScoreDeco((h.p4!=null&&h.p4!=='P')?h.p4-strokesOnHole(p4.hcp,_mpBase,si,si2h,si3h):null,h.par)}</td>`) : '')
-          /* Res1 — always shown for matchplay, sits between M1 and M2 */
-          + (isMatch ? `<td class="${resCls}">${resSym}</td>` : '')
-          /* Match 2: p3 gross/net, p4 gross/net, Res2 */
-          + (_fp&&!team&&_pc4>=3 ? scoreCell(h.p3,h.par) + (isStab ? ptsCell(sb3fp) : `<td style="text-align:center">${netScoreDeco(n3,h.par)}</td>`) : '')
-          + (_fp&&!team&&_pc4>=4 ? scoreCell(h.p4,h.par) + (isStab ? ptsCell(sb4fp) : `<td style="text-align:center">${netScoreDeco(n4,h.par)}</td>`) : '')
-          + (_fp2match ? `<td class="${_res2Cls}">${_res2Sym}</td>` : '')
+        ${/* Team 4BBB matchplay: compact gross-only — H Par SI p1 p3 p2 p4 R */
+          (isMatch && team)
+          ? scoreCell(h.p1,h.par) + scoreCell(h.p3,h.par)
+            + scoreCell(h.p2,h.par) + scoreCell(h.p4,h.par)
+            + `<td class="${resCls}">${resSym}</td>`
+          /* All other formats: interleaved Gross + Net/Pts */
+          : scoreCell(h.p1,h.par) + (isStab ? ptsCell(sb1) : `<td style="text-align:center">${netScoreDeco(n1,h.par)}</td>`)
+            + (team ? scoreCell(h.p3,h.par) + (isStab ? ptsCell(sb3fp) : `<td style="text-align:center">${netScoreDeco((h.p3!=null&&h.p3!=='P')?h.p3-strokesOnHole(p3.hcp,_mpBase,si,si2h,si3h):null,h.par)}</td>`) : '')
+            + scoreCell(h.p2,h.par) + (isStab ? ptsCell(sb2) : `<td style="text-align:center">${netScoreDeco(n2,h.par)}</td>`)
+            + (team ? scoreCell(h.p4,h.par) + (isStab ? ptsCell(sb4fp) : `<td style="text-align:center">${netScoreDeco((h.p4!=null&&h.p4!=='P')?h.p4-strokesOnHole(p4.hcp,_mpBase,si,si2h,si3h):null,h.par)}</td>`) : '')
+            + (isMatch ? `<td class="${resCls}">${resSym}</td>` : '')
+            + (_fp&&!team&&_pc4>=3 ? scoreCell(h.p3,h.par) + (isStab ? ptsCell(sb3fp) : `<td style="text-align:center">${netScoreDeco(n3,h.par)}</td>`) : '')
+            + (_fp&&!team&&_pc4>=4 ? scoreCell(h.p4,h.par) + (isStab ? ptsCell(sb4fp) : `<td style="text-align:center">${netScoreDeco(n4,h.par)}</td>`) : '')
+            + (_fp2match ? `<td class="${_res2Cls}">${_res2Sym}</td>` : '')
         }
       </tr>`;
     }
@@ -4665,7 +4671,10 @@ function renderScorecard(results, rawResults){
       }
       else sumParts+=` · ${p1s}: ${nGross.p1||'—'}${(team||_fp)?` · ${p3s}: ${nGross.p3||'—'}`:''} | ${p2s}: ${nGross.p2||'—'}${(team||_fp)?` · ${p4s}: ${nGross.p4||'—'}`:''}`;
       const _activeCols=_fp?_pc4:team?4:2;
-      const cols=_skActive?(3+game.skinsPlayers.length+1):(3+_activeCols+(isMatch?1:0)+(isStab?(_fp||team?_activeCols:2):(_fp?_activeCols:2)));
+      // Compact team matchplay has 8 cols (H+Par+SI+4 gross+R), no extra net cols
+      const cols=_skActive?(3+game.skinsPlayers.length+1)
+        :(isMatch&&team)?8
+        :(3+_activeCols+(isMatch?1:0)+(isStab?(_fp||team?_activeCols:2):(_fp?_activeCols:2)));
       rows+=`<tr class="sc-nine"><td colspan="${cols}">${sumParts}</td></tr>`;
       // Reset nine accumulators for back 9
       nGross={p1:0,p2:0,p3:0,p4:0}; nPts={p1:0,p2:0,p3:0,p4:0}; nPar=0;
@@ -4709,6 +4718,17 @@ function renderScorecard(results, rawResults){
     </tr>`;
   } else {
     const _d='—';
+    // Compact team matchplay totals: TOT | Par | SI | p1 | p3 | p2 | p4 | (empty R)
+    if(isMatch && team){
+      rows+=`<tr class="sc-total">
+        <td>TOT</td><td style="color:var(--gold)">${tPar}</td><td></td>
+        <td style="color:var(--teal)">${tg1||_d}</td>
+        <td style="color:var(--teal)">${tg3||_d}</td>
+        <td style="color:var(--red)">${tg2||_d}</td>
+        <td style="color:var(--red)">${tg4||_d}</td>
+        <td></td>
+      </tr>`;
+    } else {
     // Interleaved totals: Gross | Net/Pts per player, matching header column order
     const _totInterleaved=
       `<td style="color:var(--teal)">${tg1||_d}</td>`
@@ -4736,6 +4756,7 @@ function renderScorecard(results, rawResults){
       <td>TOT</td><td style="color:var(--gold)">${tPar}</td><td></td>
       ${_totInterleaved}
     </tr>`;
+    }
   }
 
   document.getElementById('sc-table').innerHTML=`<thead>${thead}</thead><tbody>${rows}</tbody>`;
