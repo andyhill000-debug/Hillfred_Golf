@@ -3471,10 +3471,14 @@ function _syncHoleToFirebase(holeNum) {
       const gross = hh[p.field];
       if (gross == null) return;
       holesPlayed++;
-      grossTotal += gross;
+      // P = pickup/0pts — skip gross/net accumulation; stablefordCalc handles points
+      if (gross !== 'P') {
+        grossTotal += gross;
+        const si = gsi1(hh), si2 = gsi2(hh), si3 = gsi3(hh);
+        const strokes = strokesOnHole(p.hcp, 0, si, si2, si3);
+        netTotal += gross - strokes;
+      }
       const si = gsi1(hh), si2 = gsi2(hh), si3 = gsi3(hh);
-      const strokes = strokesOnHole(p.hcp, 0, si, si2, si3);
-      netTotal += gross - strokes;
       const sb = stablefordCalc(gross, hh.par, p.hcp, si, si2, si3);
       if (sb) stabTotal += sb.points;
     });
