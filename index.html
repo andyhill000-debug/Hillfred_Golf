@@ -3550,7 +3550,9 @@ function openLeaderboard() {
   const tKey = activeTournament || '';
   const backUrl = encodeURIComponent(base + 'index.html#play');
   const url = base + 'leaderboard.html?back=' + backUrl + (tKey ? '&t=' + encodeURIComponent(tKey) : '');
-  window.location.href = url;
+  const isPWA = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  if (isPWA) window.location.href = url;
+  else window.open(url, '_blank');
 }
 
 function openMatchGraph() {
@@ -3558,7 +3560,9 @@ function openMatchGraph() {
   const tKey = activeTournament || '';
   const backUrl = encodeURIComponent(base + 'index.html#play');
   const url = base + 'match-graph.html?back=' + backUrl + (tKey ? '&t=' + encodeURIComponent(tKey) : '');
-  window.location.href = url;
+  const isPWA = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  if (isPWA) window.location.href = url;
+  else window.open(url, '_blank');
 }
 
 // ═══════════════════════════════════════════
