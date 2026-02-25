@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="theme-color" content="#0f0f0f"/>
 <title>Hillfred Golf Scorecard</title>
-<meta name="app-version" content="2026.02.25.5"/>
+<meta name="app-version" content="2026.02.25.6"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
   /* ── OUTDOOR OPTIMISED — Hillfred Golf ─────────────────────────────────────
@@ -3606,10 +3606,21 @@ function _syncHoleToFirebase(holeNum) {
   if (isMatch) {
     const results = getHoleResults();  // p1 vs p2
     _mpSt = matchStatus(results);
+    // If match is already closed (e.g. 3&2) and this hole is BEYOND closingHole,
+    // this is a posterity hole — freeze the status at the closing result,
+    // do NOT update Firebase with post-match scores
+    if (_mpSt && _mpSt.closed && _mpSt.closingHole && holeNum > _mpSt.closingHole) {
+      console.log(`[Hillfred] Hole ${holeNum} is posterity (match closed at hole ${_mpSt.closingHole}) — skipping Firebase sync`);
+      return; // Do not sync posterity holes to Firebase
+    }
     // Match 2: p3 vs p4 independent status (fourPlayer non-team only)
     if (!team && pc >= 4) {
       const res2 = game.holes.map(hh => matchHole1v1(hh.p3, hh.p4, p3.hcp, p4.hcp, _hsi(hh), _hsi2(hh), null));
       _mpSt2 = matchStatus(res2);
+      // Same posterity check for match 2
+      if (_mpSt2 && _mpSt2.closed && _mpSt2.closingHole && holeNum > _mpSt2.closingHole) {
+        return;
+      }
     }
   }
 
@@ -5154,8 +5165,8 @@ function renderFinishBar(mpStatus, all18){
         🏆 ${winnerName} wins ${mpStatus.label} — match complete
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" style="flex:2;font-size:14px" onclick="finishGame()">✅ Finish &amp; Save</button>
-        <button class="btn btn-ghost" style="flex:1;font-size:13px" onclick="dismissFinishBar()">Continue →</button>
+        <button class="btn btn-primary" style="flex:2;font-size:14px" onclick="finishGame()">💾 Save &amp; Close</button>
+        <button class="btn btn-ghost" style="flex:1;font-size:13px" onclick="dismissFinishBar()">▶ Play for Posterity</button>
       </div>`;
   } else {
     // All 18 played — compute standings with countback for stroke/stableford
