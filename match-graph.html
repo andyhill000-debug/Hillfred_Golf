@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="app-version" content="2026.02.25.2"/>
+<meta name="app-version" content="2026.02.25.3"/>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Match Graph · SGG 2026</title>
@@ -259,16 +259,17 @@ function rebuildDropdown() {
     sel.appendChild(opt);
   });
 
-  // Auto-select: restore previous, or pick first live match, or first overall
+  // Auto-select: restore previous selection, or pick the live match closest to finishing
   if (prev && [...sel.options].some(o => o.value === prev)) {
     sel.value   = prev;
     selectedKey = prev;
   } else {
-    const firstLive = shown.find(g => g.status === 'live');
-    const first     = firstLive || shown[0];
-    if (first) {
-      sel.value   = first.key;
-      selectedKey = first.key;
+    // Pick live match with most holes played (already sorted that way), else first overall
+    const liveMatches = shown.filter(g => g.status === 'live');
+    const best = liveMatches[0] || shown[0];
+    if (best) {
+      sel.value   = best.key;
+      selectedKey = best.key;
     } else {
       selectedKey = '';
     }
@@ -341,7 +342,25 @@ function buildGameList() {
       });
     }
   });
-  games.sort((a,b) => (a.status==='live'?0:1) - (b.status==='live'?0:1) || a.label.localeCompare(b.label));
+  // Sort: live first, then by holes played descending (closest to hole 18 at top), then alpha
+  games.forEach(g => {
+    // Get holesPlayed from the most-progressed player in this match
+    let maxHoles = 0;
+    g.players.forEach(([, pd]) => {
+      const hp = pd.holesPlayed || (() => {
+        let m = 0;
+        for (let i = 1; i <= 18; i++) if (pd[`h${i}`]?.mpStatus != null) m = i;
+        return m;
+      })();
+      if (hp > maxHoles) maxHoles = hp;
+    });
+    g._holesPlayed = maxHoles;
+  });
+  games.sort((a, b) =>
+    (a.status === 'live' ? 0 : 1) - (b.status === 'live' ? 0 : 1) ||
+    b._holesPlayed - a._holesPlayed ||
+    a.label.localeCompare(b.label)
+  );
   return games;
 }
 
