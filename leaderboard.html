@@ -2030,7 +2030,12 @@ window.toggleDetail = function(i) {
 const urlP = new URLSearchParams(window.location.search);
 const tP = urlP.get('t');
 const _backUrl = urlP.get('back') || 'index.html';
-window.goBack = function() { window.location.href = _backUrl; };
+window.goBack = function() {
+  // Flag already set by index.html before navigating here
+  // Just navigate back — index.html will detect flag and go to scorecard
+  const base = window.location.href.replace(/[^\/]*(\?.*)?$/, '');
+  window.location.href = base + 'index.html';
+};
 if (tP) {
   setTimeout(() => {
     const sel = document.getElementById('t-select');

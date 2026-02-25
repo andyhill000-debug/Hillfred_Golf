@@ -3549,16 +3549,18 @@ function startGame(){
 function openLeaderboard() {
   const base = window.location.href.replace(/[^/]*(\?.*)?$/, '');
   const tKey = activeTournament || '';
-  const backUrl = encodeURIComponent(window.location.href.split('?')[0].split('#')[0] + '#play');
-  const url = base + 'leaderboard.html?back=' + backUrl + (tKey ? '&t=' + encodeURIComponent(tKey) : '');
+  // Flag tells index.html to go straight to scorecard on return
+  try { localStorage.setItem('hf_return_to_play', '1'); } catch(e) {}
+  const url = base + 'leaderboard.html' + (tKey ? '?t=' + encodeURIComponent(tKey) : '');
   window.location.href = url;
 }
 
 function openMatchGraph() {
   const base = window.location.href.replace(/[^/]*(\?.*)?$/, '');
   const tKey = activeTournament || '';
-  const backUrl = encodeURIComponent(window.location.href.split('?')[0].split('#')[0] + '#play');
-  const url = base + 'match-graph.html?back=' + backUrl + (tKey ? '&t=' + encodeURIComponent(tKey) : '');
+  // Flag tells index.html to go straight to scorecard on return
+  try { localStorage.setItem('hf_return_to_play', '1'); } catch(e) {}
+  const url = base + 'match-graph.html' + (tKey ? '?t=' + encodeURIComponent(tKey) : '');
   window.location.href = url;
 }
 
@@ -5609,31 +5611,35 @@ setTimeout(() => startTutorial(false), 600);
 // ── Back-to-scorecard: if returning from leaderboard/graph via #play ──────────
 // Run BEFORE checkForSavedGame — directly restore from localStorage and show play tab.
 // This is the only reliable cross-platform approach (works on iOS PWA, Android, desktop).
-(function handlePlayHash() {
-  if (window.location.hash !== '#play') return;
-  history.replaceState(null, '', window.location.pathname + window.location.search);
-  let saved;
-  try { saved = JSON.parse(localStorage.getItem(LS_AUTOSAVE)); } catch(e) {}
-  if (saved && saved.game) {
-    const g = saved.game;
+// ── Return-to-scorecard: if coming back from leaderboard/graph ───────────────
+const _returnToPlay = (()=>{ try { return !!localStorage.getItem('hf_return_to_play'); } catch(e) { return false; } })();
+try { localStorage.removeItem('hf_return_to_play'); } catch(e) {}
+
+renderMatchBanner();
+checkCanStart();
+
+if (_returnToPlay) {
+  // Returning from leaderboard/graph — restore game silently and go to scorecard
+  let _rSaved;
+  try { _rSaved = JSON.parse(localStorage.getItem(LS_AUTOSAVE)); } catch(e) {}
+  if (_rSaved && _rSaved.game) {
+    const g = _rSaved.game;
     game       = g;
     gameMode   = g.mode || 'matchplay';
     teamPlay   = g.team || false;
     fourPlayer = (g.playerCount || 2) >= 3;
     const nextHole = g.holes.find(h => h.p1 == null);
     activeHole = nextHole ? nextHole.hole : 18;
-    renderMatchBanner();
-    checkCanStart();
     setNavScorecard(true);
     showTab('play');
-    return;
+  } else {
+    checkForSavedGame();
   }
-})();
-renderMatchBanner();
-checkCanStart();
-checkForSavedGame();
-// Safety net: if a game was restored by any path above, ensure nav reflects it
-setTimeout(() => { if (game) setNavScorecard(true); }, 50);
+} else {
+  checkForSavedGame();
+}
+// Safety net
+setTimeout(() => { if (game) setNavScorecard(true); }, 100);
 
 // ── Version check: detect if a newer version of the app is available ─────────
 (function checkForUpdate(){
