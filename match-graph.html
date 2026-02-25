@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="app-version" content="2026.02.25.3"/>
+<meta name="app-version" content="2026.02.25.4"/>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Match Graph · SGG 2026</title>
@@ -198,6 +198,7 @@ const INIT_MATCH  = params.get('m') || '';
 // ── State ─────────────────────────────────────────────────────────────────────
 let liveScores    = {};
 let selectedKey   = INIT_MATCH;
+let userSelectedKey = INIT_MATCH; // only set when user manually picks from dropdown
 let filter        = 'all';
 let connected     = false;
 let lastUpdated   = null;
@@ -247,7 +248,6 @@ window.setFilter = function(f) {
 // ── Dropdown ──────────────────────────────────────────────────────────────────
 function rebuildDropdown() {
   const sel  = document.getElementById('match-select');
-  const prev = sel.value || selectedKey;
   sel.innerHTML = '<option value="">— Select a match —</option>';
 
   const games = buildGameList();
@@ -259,14 +259,20 @@ function rebuildDropdown() {
     sel.appendChild(opt);
   });
 
-  // Auto-select: restore previous selection, or pick the live match closest to finishing
-  if (prev && [...sel.options].some(o => o.value === prev)) {
-    sel.value   = prev;
-    selectedKey = prev;
+  // Auto-select logic:
+  // - If user manually picked a match AND it's still live → keep showing it
+  // - Otherwise always pick the live match closest to finishing (most holes played)
+  const userPickStillLive = userSelectedKey &&
+    shown.some(g => g.key === userSelectedKey && g.status === 'live');
+
+  if (userPickStillLive) {
+    sel.value   = userSelectedKey;
+    selectedKey = userSelectedKey;
   } else {
-    // Pick live match with most holes played (already sorted that way), else first overall
+    // Clear user selection — auto-pick best live match
+    userSelectedKey = '';
     const liveMatches = shown.filter(g => g.status === 'live');
-    const best = liveMatches[0] || shown[0];
+    const best = liveMatches[0] || shown[0]; // already sorted by holesPlayed desc
     if (best) {
       sel.value   = best.key;
       selectedKey = best.key;
@@ -282,6 +288,7 @@ function rebuildDropdown() {
 
 window.onSelectChange = function(key) {
   selectedKey = key;
+  userSelectedKey = key; // user explicitly chose — respect this until match finishes
   if (key) renderGraph(key);
   else document.getElementById('graph-content').innerHTML =
     '<div class="empty"><div class="icon">📈</div><p>Select a match to view its worm graph</p></div>';
