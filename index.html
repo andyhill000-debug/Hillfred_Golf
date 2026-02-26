@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png"/>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png"/>
 <title>Hillfred Golf Scorecard</title>
-<meta name="app-version" content="2026.02.26.19"/>
+<meta name="app-version" content="2026.02.26.20"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
   /* ── OUTDOOR OPTIMISED — Hillfred Golf ─────────────────────────────────────
@@ -877,7 +877,7 @@
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px">
       <div id="fourplayer-box" style="background:#141414;border:1.5px solid #2a2a2a;border-radius:12px;padding:12px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;transition:all .2s">
-        <div id="fourplayer-box-label" style="font-size:11px;color:#ccc;font-weight:700;letter-spacing:.5px">3-4 Players</div>
+        <div id="fourplayer-box-label" style="font-size:11px;color:#ccc;font-weight:700;letter-spacing:.5px;text-align:center;line-height:1.3">3-4<br>Players</div>
         <button class="toggle" id="fourplayer-toggle" onclick="toggleFourPlayer()"></button>
         <span class="toggle-label" id="fourplayer-label" style="font-size:12px">Off</span>
       </div>
@@ -1954,10 +1954,16 @@ function toggleFourPlayer() {
   if (_p3cl && !activeTournament) {
     _p3cl.textContent = 'Player 3 — Match 2';
     _p3cl.style.color = fourPlayer && gameMode === 'matchplay' ? 'var(--teal)' : '';
+  } else if (_p3cl && activeTournament && TOURNAMENT[activeTournament]?.type === 'singles') {
+    _p3cl.textContent = 'Player 3';
+    _p3cl.style.color = '';
   }
   if (_p4cl && !activeTournament) {
     _p4cl.textContent = 'Player 4 — Match 2';
     _p4cl.style.color = fourPlayer && gameMode === 'matchplay' ? 'var(--red)' : '';
+  } else if (_p4cl && activeTournament && TOURNAMENT[activeTournament]?.type === 'singles') {
+    _p4cl.textContent = 'Player 4';
+    _p4cl.style.color = '';
   }
   if(!fourPlayer){
     document.getElementById('p3-ind-name').value='';
@@ -2016,13 +2022,20 @@ function checkCanStart() {
   const hasP1Hcp=hasHcp('p1-hcp'), hasP2Hcp=hasHcp('p2-hcp');
   const hasP1=hasP1Name&&hasP1Hcp, hasP2=hasP2Name&&hasP2Hcp;
 
-  const needP3=teamPlay||fourPlayer;
-  const needP4=teamPlay;
-  const hasP3Name=needP3?!!(gv('p3-name')||'').trim():true;
-  const hasP3Hcp=needP3?hasHcp('p3-hcp'):true;
-  const hasP4Name=needP4?!!(gv('p4-name')||'').trim():true;
-  const hasP4Hcp=needP4?hasHcp('p4-hcp'):true;
-  const hasP3=hasP3Name&&hasP3Hcp, hasP4=hasP4Name&&hasP4Hcp;
+  const needP3 = teamPlay || fourPlayer;
+  const needP4 = teamPlay || fourPlayer;
+
+  // When fourPlayer is on without teamPlay, names/hcps live in the ind fields
+  const _p3NameId = (fourPlayer && !teamPlay) ? 'p3-ind-name' : 'p3-name';
+  const _p3HcpId  = (fourPlayer && !teamPlay) ? 'p3-ind-hcp'  : 'p3-hcp';
+  const _p4NameId = (fourPlayer && !teamPlay) ? 'p4-ind-name' : 'p4-name';
+  const _p4HcpId  = (fourPlayer && !teamPlay) ? 'p4-ind-hcp'  : 'p4-hcp';
+
+  const hasP3Name = needP3 ? !!(gv(_p3NameId)||'').trim() : true;
+  const hasP3Hcp  = needP3 ? hasHcp(_p3HcpId) : true;
+  const hasP4Name = needP4 ? !!(gv(_p4NameId)||'').trim() : true;
+  const hasP4Hcp  = needP4 ? hasHcp(_p4HcpId) : true;
+  const hasP3 = hasP3Name && hasP3Hcp, hasP4 = hasP4Name && hasP4Hcp;
 
   const isPreset = !!(activeTournament && TOURNAMENT[activeTournament]?.preset);
   const hasMode = !!gameMode;
@@ -2268,6 +2281,10 @@ function onTournamentSelect(val) {
         const p3in=_g('p3-ind-name'), p4in=_g('p4-ind-name');
         if(p3in) p3in.style.display='none';
         if(p4in) p4in.style.display='none';
+        // Label p3/p4 cards plainly — no "Match 2" for singles tournaments
+        const p3cl=_g('p3-card-label'), p4cl=_g('p4-card-label');
+        if(p3cl){ p3cl.textContent='Player 3'; p3cl.style.color=''; }
+        if(p4cl){ p4cl.textContent='Player 4'; p4cl.style.color=''; }
       }
     }
     ['p1-name','p2-name','p3-name','p4-name'].forEach(id => { const e=_g(id); if(e) e.value=''; });
