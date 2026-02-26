@@ -2188,8 +2188,9 @@ function setTeamsMatchFormat(fmt) {
 
   // Update card labels for the active tournament
   if (t && t.type === 'teams') {
-    document.getElementById('t1-card-label').textContent = t.team1.name + (is4bbb ? '' : ' — Match 1');
-    document.getElementById('t2-card-label').textContent = t.team2.name + (is4bbb ? '' : ' — Match 1');
+    const _t1cl=document.getElementById('t1-card-label'), _t2cl=document.getElementById('t2-card-label');
+    if(_t1cl){ _t1cl.textContent = t.team1.name + (is4bbb ? '' : ' — Match 1'); _t1cl.style.color = 'var(--teal)'; }
+    if(_t2cl){ _t2cl.textContent = t.team2.name + (is4bbb ? '' : ' — Match 1'); _t2cl.style.color = 'var(--red)'; }
     // Colour the select labels inside Match 1 cards to match Match 2
     const p1sl=document.getElementById('p1-select-label'), p2sl=document.getElementById('p2-select-label');
     if(p1sl) p1sl.style.color = 'var(--teal)';
