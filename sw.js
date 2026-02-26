@@ -1,18 +1,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Hillfred Golf — Service Worker
-// Version: 2026.02.26.28
-// Cache strategy: Cache-first for app shell, network-only for Firebase
+// Version: 2026.02.27.01
+// Cache strategy: Network-first for HTML, cache-first for static assets
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = '2026.02.26.28';
+const CACHE_VERSION = '2026.02.27.01';
 const CACHE_NAME    = `hillfred-golf-${CACHE_VERSION}`;
 
-// App shell files to cache on install
-const APP_SHELL = [
+// HTML pages — always try network first so updates are instant
+const HTML_PAGES = [
   '/Hillfred_Golf/',
   '/Hillfred_Golf/index.html',
   '/Hillfred_Golf/leaderboard.html',
   '/Hillfred_Golf/match-graph.html',
+];
+
+// Static assets — cache-first, these rarely change
+const STATIC_ASSETS = [
   '/Hillfred_Golf/manifest.json',
   '/Hillfred_Golf/icons/icon-32.png',
   '/Hillfred_Golf/icons/icon-76.png',
@@ -23,7 +27,9 @@ const APP_SHELL = [
   '/Hillfred_Golf/icons/icon-512.png',
 ];
 
-// Never cache these — always go to network
+const APP_SHELL = [...HTML_PAGES, ...STATIC_ASSETS];
+
+// Never cache these — always network only
 const NETWORK_ONLY = [
   'firebasedatabase.app',
   'firebase.googleapis.com',
@@ -34,88 +40,94 @@ const NETWORK_ONLY = [
   'fonts.gstatic.com',
 ];
 
-// ── Install: cache app shell ──────────────────────────────────────────────────
+// ── Install: cache app shell and take over immediately ───────────────────────
 self.addEventListener('install', event => {
-  console.log(`[SW] Installing cache ${CACHE_NAME}`);
+  console.log(`[SW] Installing ${CACHE_NAME}`);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(APP_SHELL))
       .then(() => {
         console.log(`[SW] App shell cached (${APP_SHELL.length} files)`);
-        // ONE-TIME skip to displace the old SW that had auto-skipWaiting
-        // From the next version onwards this line will be removed and the banner flow takes over
         return self.skipWaiting();
       })
       .catch(err => console.warn('[SW] Cache install error:', err))
   );
 });
 
-// ── Activate: delete old caches ───────────────────────────────────────────────
+// ── Activate: delete old caches and claim all clients ───────────────────────
 self.addEventListener('activate', event => {
   console.log(`[SW] Activating ${CACHE_NAME}`);
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys
-        .filter(key => key.startsWith('hillfred-golf-') && key !== CACHE_NAME)
-        .map(key => {
-          console.log(`[SW] Deleting old cache: ${key}`);
-          return caches.delete(key);
-        })
-    )).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(
+        keys
+          .filter(key => key.startsWith('hillfred-golf-') && key !== CACHE_NAME)
+          .map(key => {
+            console.log(`[SW] Deleting old cache: ${key}`);
+            return caches.delete(key);
+          })
+      ))
+      .then(() => self.clients.claim())
+      .then(() => {
+        return self.clients.matchAll({ type: 'window' }).then(clients => {
+          clients.forEach(client => client.postMessage({ type: 'SW_ACTIVATED', version: CACHE_VERSION }));
+        });
+      })
   );
 });
 
-// ── Fetch: serve from cache, fall back to network ────────────────────────────
+// ── Fetch ────────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', event => {
   const url = event.request.url;
 
-  // Always go to network for Firebase and external APIs
   if (NETWORK_ONLY.some(domain => url.includes(domain))) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // Always go to network for non-GET requests (POST, etc.)
   if (event.request.method !== 'GET') {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // Cache-first strategy for app shell
+  const isHTML = HTML_PAGES.some(p => url.endsWith(p) || url.includes(p + '?')) ||
+                 event.request.headers.get('accept')?.includes('text/html');
+
+  if (isHTML) {
+    // Network-first for HTML — always get the freshest version
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .then(response => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => {
+          console.log('[SW] Offline — serving cached HTML');
+          return caches.match(event.request) || caches.match('/Hillfred_Golf/index.html');
+        })
+    );
+    return;
+  }
+
+  // Cache-first for static assets
   event.respondWith(
     caches.match(event.request).then(cached => {
-      if (cached) {
-        // Serve from cache immediately, update cache in background
-        const networkUpdate = fetch(event.request)
-          .then(response => {
-            if (response && response.status === 200) {
-              caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
-            }
-            return response;
-          })
-          .catch(() => {}); // ignore network errors when offline
-        return cached;
-      }
-
-      // Not in cache — fetch from network and cache it
+      if (cached) return cached;
       return fetch(event.request).then(response => {
-        if (!response || response.status !== 200 || response.type === 'opaque') {
-          return response;
+        if (response && response.status === 200 && response.type !== 'opaque') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
-        const toCache = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, toCache));
         return response;
-      }).catch(() => {
-        // Offline and not cached — return offline fallback for HTML pages
-        if (event.request.headers.get('accept')?.includes('text/html')) {
-          return caches.match('/Hillfred_Golf/index.html');
-        }
-      });
+      }).catch(() => {});
     })
   );
 });
 
-// ── Message: force refresh from main app ─────────────────────────────────────
+// ── Message handler ──────────────────────────────────────────────────────────
 self.addEventListener('message', event => {
   if (event.data === 'SKIP_WAITING') {
     self.skipWaiting();
