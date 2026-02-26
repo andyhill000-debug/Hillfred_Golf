@@ -3666,58 +3666,40 @@ const CHANGELOG = [
     version: '2026.02.26.27',
     date: '26 Feb 2026',
     entries: [
-      { type: 'improve', text: 'Update banner now always shown before reloading \u2014 no more silent updates mid-game' },
-      { type: 'improve', text: 'Tapping the update banner now shows a full changelog before committing to reload' },
+      { type: 'improve', text: 'Smarter update handling — you’re now in control of when the app refreshes' },
     ]
   },
   {
     version: '2026.02.26.26',
     date: '26 Feb 2026',
     entries: [
-      { type: 'fix',     text: 'Admin passphrase now works on Edge / PC browsers served over HTTP' },
-      { type: 'fix',     text: 'Pure-JS SHA-256 fallback added \u2014 no longer requires HTTPS secure context' },
+      { type: 'fix',     text: 'Login improvements for desktop browsers' },
     ]
   },
   {
     version: '2026.02.26.25',
     date: '26 Feb 2026',
     entries: [
-      { type: 'fix',     text: 'Score entry screen jolt on iPhone PWA resolved' },
-      { type: 'improve', text: 'PWA keyboard handling improved with interactive-widget viewport hint' },
-      { type: 'improve', text: 'Scroll position locked during focus transfers to prevent iOS layout jumps' },
-    ]
-  },
-  {
-    version: '2026.02.26.24',
-    date: '26 Feb 2026',
-    entries: [
-      { type: 'fix',     text: 'Score entry jolt on iPhone fixed using preventScroll on all focus calls' },
-      { type: 'fix',     text: 'Keyboard anchor repositioned to prevent iOS scrolling off-screen' },
+      { type: 'fix',     text: 'Smoother score entry on iPhone, particularly in the installed app' },
     ]
   },
   {
     version: '2026.02.26.23',
     date: '26 Feb 2026',
     entries: [
-      { type: 'fix',     text: 'Singles 4-player mode: all four player dropdowns now populate correctly' },
-      { type: 'fix',     text: 'Player 3 & 4 card labels corrected for singles tournaments' },
-      { type: 'fix',     text: 'Start button validation fixed for 4-player singles tournaments' },
+      { type: 'fix',     text: 'Various fixes to the 4-player tournament setup flow' },
     ]
   },
   {
     version: '2026.02.26.14',
     date: '26 Feb 2026',
     entries: [
-      { type: 'improve', text: 'Storage full warning shown when localStorage quota is exceeded' },
-      { type: 'improve', text: 'History now paginates \u2014 loads 20 at a time for better performance' },
-      { type: 'improve', text: 'Passphrase hashing now salted per-device for improved security' },
-      { type: 'fix',     text: 'Back gesture on iOS PWA no longer exits the app' },
-      { type: 'fix',     text: 'Service worker update cycle wired up correctly' },
-      { type: 'fix',     text: 'Tournament deletion warns if a game is currently in progress' },
-      { type: 'improve', text: 'Accessibility: aria-labels added, font sizes prevent iOS auto-zoom' },
+      { type: 'improve', text: 'Performance and stability improvements' },
+      { type: 'improve', text: 'Security improvements' },
+      { type: 'fix',     text: 'Several small fixes across scoring, history and tournaments' },
     ]
   },
-];
+]
 
 const _typeStyle = {
   fix:     { bg: 'rgba(255,90,90,0.1)',    color: '#ff5a5a',     border: 'rgba(255,90,90,0.25)',   label: 'Fix'    },
