@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Hillfred Golf — Service Worker
-// Version: 2026.02.26.13
+// Version: 2026.02.26.27
 // Cache strategy: Cache-first for app shell, network-only for Firebase
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = '2026.02.26.13';
+const CACHE_VERSION = '2026.02.26.27';
 const CACHE_NAME    = `hillfred-golf-${CACHE_VERSION}`;
 
 // App shell files to cache on install
@@ -42,8 +42,7 @@ self.addEventListener('install', event => {
       .then(cache => cache.addAll(APP_SHELL))
       .then(() => {
         console.log(`[SW] App shell cached (${APP_SHELL.length} files)`);
-        // Take control immediately — don't wait for old SW to die
-        return self.skipWaiting();
+        // Do NOT skipWaiting here — wait for user to tap "Update Now" in the changelog banner
       })
       .catch(err => console.warn('[SW] Cache install error:', err))
   );
