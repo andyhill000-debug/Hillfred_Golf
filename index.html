@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png"/>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png"/>
 <title>Hillfred Golf Scorecard</title>
-<meta name="app-version" content="2026.02.26.14"/>
+<meta name="app-version" content="2026.02.26.15"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
   /* ── OUTDOOR OPTIMISED — Hillfred Golf ─────────────────────────────────────
@@ -4111,9 +4111,34 @@ function _buildAndStoreResults(tournamentKey) {
 // ADMIN SYSTEM
 // ═══════════════════════════════════════════
 
-const LS_ADMIN_HASH = 'hf_admin_pin_hash';
-const LS_ADMIN_SQ   = 'hf_admin_sq';
-const LS_ADMIN_SALT = 'hf_admin_salt';
+const LS_ADMIN_HASH    = 'hf_admin_pin_hash';
+const LS_ADMIN_SQ      = 'hf_admin_sq';
+const LS_ADMIN_SALT    = 'hf_admin_salt';
+const LS_ADMIN_MIGRATED = 'hf_admin_salted_v1'; // flag: migration has run
+
+// ── One-time migration: clear pre-salt credentials ────────────────────────────
+// Any hash stored before v2026.02.26.14 was unsalted — it will never match the
+// new salted hash, silently locking the admin out. Detect this and clear cleanly.
+(function _migrateAdminCredentials() {
+  try {
+    const alreadyMigrated = localStorage.getItem(LS_ADMIN_MIGRATED);
+    const hasOldHash      = localStorage.getItem(LS_ADMIN_HASH);
+    const hasSalt         = localStorage.getItem(LS_ADMIN_SALT);
+    // If there's a stored hash but no salt, it's a pre-migration credential
+    if (!alreadyMigrated && hasOldHash && !hasSalt) {
+      localStorage.removeItem(LS_ADMIN_HASH);
+      localStorage.removeItem(LS_ADMIN_SQ);
+      localStorage.setItem(LS_ADMIN_MIGRATED, '1');
+      // Show a toast once the app has initialised
+      setTimeout(() => {
+        showToast('🔐 Admin passphrase reset — please set a new one via ⚙️');
+      }, 2500);
+    } else if (!alreadyMigrated) {
+      // No old hash exists — just mark as migrated
+      localStorage.setItem(LS_ADMIN_MIGRATED, '1');
+    }
+  } catch(e) {}
+})();
 
 function _getOrCreateSalt() {
   try {
