@@ -2190,6 +2190,10 @@ function setTeamsMatchFormat(fmt) {
   if (t && t.type === 'teams') {
     document.getElementById('t1-card-label').textContent = t.team1.name + (is4bbb ? '' : ' — Match 1');
     document.getElementById('t2-card-label').textContent = t.team2.name + (is4bbb ? '' : ' — Match 1');
+    // Colour the select labels inside Match 1 cards to match Match 2
+    const p1sl=document.getElementById('p1-select-label'), p2sl=document.getElementById('p2-select-label');
+    if(p1sl) p1sl.style.color = 'var(--teal)';
+    if(p2sl) p2sl.style.color = 'var(--red)';
     const p3nl=document.getElementById('p3-name-label'),p3sl=document.getElementById('p3-select-label');
     const p4nl=document.getElementById('p4-name-label'),p4sl=document.getElementById('p4-select-label');
     if(isTeamsSingles){
@@ -2284,10 +2288,16 @@ function onTournamentSelect(val) {
     } else {
       // Singles tournament
       ['t1-card-label','t2-card-label'].forEach((id,i) => { const e=_g(id); if(e) { e.textContent='Player '+(i+1); e.style.color=''; } });
+      // Reset select label colours — may have been teal/red from a previous teams selection
+      ['p1-select-label','p2-select-label','p3-select-label','p4-select-label','p3-ind-select-label','p4-ind-select-label'].forEach(id => { const e=_g(id); if(e) e.style.color=''; });
       populateTournamentDropdown('p1-name-select', t.players||[]);
       populateTournamentDropdown('p2-name-select', t.players||[]);
       ['p1-name-select-wrap','p2-name-select-wrap'].forEach(id => { const e=_g(id); if(e) e.style.display='block'; });
       ['p1-name','p2-name','p1-name-label','p2-name-label'].forEach(id => { const e=_g(id); if(e) e.style.display='none'; });
+      // Reset p3/p4 select labels — strip any "ROW/AUS Match 2" text and colours left over from teams
+      const p3sl=_g('p3-ind-select-label'), p4sl=_g('p4-ind-select-label');
+      if(p3sl){ p3sl.textContent='Select Player'; p3sl.style.color=''; }
+      if(p4sl){ p4sl.textContent='Select Player'; p4sl.style.color=''; }
       // Ensure 4BBB off
       if (teamPlay) {
         teamPlay = false;
