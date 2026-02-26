@@ -358,7 +358,7 @@ select.t-select{width:100%;background:var(--card);border:1.5px solid var(--borde
 <!-- Header -->
 <div class="header">
   <div class="header-left">
-    <button class="back-btn" id="back-btn" onclick="goBack()">← Home</button>
+    <button class="back-btn" id="back-btn" onclick="goBack()">← Scorecard</button>
     <div class="header-brand">Hill<span>fred</span></div>
   </div>
   <div style="display:flex;align-items:center;gap:8px">
@@ -559,9 +559,12 @@ onValue(ref(db, 'tournaments'), snap => {
   });
   if (cur && data[cur]) sel.value = cur;
 
-  // Auto-select if only one tournament and none currently selected
+  // Auto-select: prefer URL ?t= param, then fall back to single tournament
   const realOpts = Array.from(sel.options).filter(o => o.value);
-  if (!cur && realOpts.length === 1) {
+  if (!sel.value && tP && data[tP]) {
+    sel.value = tP;
+    window.onTournamentChange(tP);
+  } else if (!sel.value && realOpts.length === 1) {
     sel.value = realOpts[0].value;
     window.onTournamentChange(realOpts[0].value);
   }
@@ -2042,11 +2045,15 @@ window.goBack = function() {
   window.location.href = base + 'index.html';
 };
 if (tP) {
+  // tP is handled in the onValue tournaments handler above — this is a fallback
+  // in case the dropdown was already populated before onValue fired
   setTimeout(() => {
     const sel = document.getElementById('t-select');
-    sel.value = tP;
-    if (sel.value === tP) window.onTournamentChange(tP);
-  }, 1500);
+    if (!sel.value && sel.querySelector(`option[value="${tP}"]`)) {
+      sel.value = tP;
+      window.onTournamentChange(tP);
+    }
+  }, 800);
 }
 </script>
 
