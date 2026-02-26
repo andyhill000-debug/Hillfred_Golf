@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png"/>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png"/>
 <title>Hillfred Golf Scorecard</title>
-<meta name="app-version" content="2026.02.26.16"/>
+<meta name="app-version" content="2026.02.26.17"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
   /* ── OUTDOOR OPTIMISED — Hillfred Golf ─────────────────────────────────────
@@ -40,7 +40,7 @@
   #update-bar{font-family:'DM Sans',sans-serif}
   body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;max-width:480px;margin:0 auto;min-height:100vh;overflow-x:hidden;overscroll-behavior-x:none;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
   html{overflow-x:hidden;overscroll-behavior-x:none}
-  .header{background:linear-gradient(135deg,#0a0a0a,#0c2018);border-bottom:2px solid var(--teal);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .header{background:linear-gradient(135deg,#0a0a0a,#0c2018);border-bottom:2px solid var(--teal);padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
   .header-title{font-family:'Playfair Display',Georgia,serif;font-size:13px;color:var(--teal);letter-spacing:2px;text-transform:uppercase;font-weight:700}
   .nav{display:flex;gap:4px;padding:6px 8px;background:#141414;border-bottom:2px solid var(--border);position:sticky;top:62px;z-index:99}
   .nav-btn{flex:1;padding:8px 2px;border:none;border-radius:9px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:700;font-size:9px;letter-spacing:.2px;transition:all .2s;background:#252525;color:#888;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;line-height:1.2}
@@ -786,7 +786,7 @@
 </div>
 
 <div class="header">
-  <svg class="logo-svg" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+  <svg class="logo-svg" id="header-logo" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg" onclick="_logoTap()" style="cursor:pointer">
     <g transform="translate(50,60)"><g transform="rotate(45 28 28)">
       <rect x="0" y="0" width="16" height="16" fill="#00d4aa" rx="1"/>
       <rect x="20" y="0" width="16" height="16" fill="white" rx="1"/>
@@ -4121,7 +4121,6 @@ const LS_ADMIN_MIGRATED = 'hf_admin_salted_v1'; // flag: migration has run
   try {
     const hasHash = localStorage.getItem(LS_ADMIN_HASH);
     const hasSalt = localStorage.getItem(LS_ADMIN_SALT);
-    // If there's a stored hash but no salt it's a pre-migration credential — always clear
     if (hasHash && !hasSalt) {
       localStorage.removeItem(LS_ADMIN_HASH);
       localStorage.removeItem(LS_ADMIN_SQ);
@@ -4133,6 +4132,30 @@ const LS_ADMIN_MIGRATED = 'hf_admin_salted_v1'; // flag: migration has run
     localStorage.setItem(LS_ADMIN_MIGRATED, '1');
   } catch(e) {}
 })();
+
+// ── Hidden logo tap — 7 taps clears admin credentials ────────────────────────
+let _logoTapCount = 0;
+let _logoTapTimer = null;
+function _logoTap() {
+  _logoTapCount++;
+  clearTimeout(_logoTapTimer);
+  // Reset counter after 3 seconds of inactivity
+  _logoTapTimer = setTimeout(() => { _logoTapCount = 0; }, 3000);
+  if (_logoTapCount === 5) {
+    showToast('2 more taps to reset admin credentials…');
+  }
+  if (_logoTapCount >= 7) {
+    _logoTapCount = 0;
+    clearTimeout(_logoTapTimer);
+    try {
+      localStorage.removeItem(LS_ADMIN_HASH);
+      localStorage.removeItem(LS_ADMIN_SQ);
+      localStorage.removeItem(LS_ADMIN_SALT);
+      localStorage.removeItem(LS_ADMIN_MIGRATED);
+    } catch(e) {}
+    showToast('🔐 Admin credentials cleared — tap ⚙️ to set a new passphrase');
+  }
+}
 
 function _getOrCreateSalt() {
   try {
