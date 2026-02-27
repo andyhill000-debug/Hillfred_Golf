@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="app-version" content="2026.02.25.7"/>
+<meta name="app-version" content="2026.02.27.11"/>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Match Graph · SGG 2026</title>
@@ -148,6 +148,10 @@
     <button class="pill"        id="pill-live"     onclick="setFilter('live')">● Live</button>
     <button class="pill"        id="pill-finished" onclick="setFilter('finished')">✓ Done</button>
   </div>
+  <select id="day-select" onchange="onDayChange(this.value)" style="flex:0;min-width:0;width:auto;background:#161616;border:1px solid #2a2a2a;color:var(--teal);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;padding:7px 10px;border-radius:8px;outline:none;cursor:pointer">
+    <option value="sgg_2026_day1">Day 1</option>
+    <option value="sgg_2026_day2">Day 2</option>
+  </select>
   <select id="match-select" onchange="onSelectChange(this.value)">
     <option value="">— Loading matches… —</option>
   </select>
@@ -192,7 +196,7 @@ const db = getDatabase(app);
 
 // ── URL params ────────────────────────────────────────────────────────────────
 const params      = new URLSearchParams(location.search);
-const TOURN_KEY   = params.get('t') || 'sgg_2026_day1';
+let   TOURN_KEY   = params.get('t') || 'sgg_2026_day2';
 const INIT_MATCH  = params.get('m') || '';
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -202,6 +206,35 @@ let userSelectedKey = INIT_MATCH; // only set when user manually picks from drop
 let filter        = 'all';
 let connected     = false;
 let lastUpdated   = null;
+let _scoresUnsub  = null;
+
+// Set day dropdown to match current key
+const _daySel = document.getElementById('day-select');
+if (_daySel) _daySel.value = TOURN_KEY;
+
+window.onDayChange = function(newKey) {
+  if (newKey === TOURN_KEY) return;
+  TOURN_KEY = newKey;
+  liveScores = {};
+  selectedKey = '';
+  userSelectedKey = '';
+  // Unsubscribe old listener and resubscribe to new tournament
+  if (_scoresUnsub) { _scoresUnsub(); _scoresUnsub = null; }
+  document.getElementById('match-select').innerHTML = '<option value="">— Loading matches… —</option>';
+  document.getElementById('graph-content').innerHTML = '<div class="empty"><div class="icon">📈</div><p>Loading Day ' + (newKey.includes('day2') ? '2' : '1') + ' matches…</p></div>';
+  subscribeScores();
+};
+
+function subscribeScores() {
+  _scoresUnsub = onValue(ref(db, `tournaments/${TOURN_KEY}/scores`), snap => {
+    liveScores  = snap.val() || {};
+    lastUpdated = new Date();
+    document.getElementById('last-update').textContent =
+      'Updated ' + lastUpdated.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    rebuildDropdown();
+    updateRefreshBadge();
+  });
+}
 
 // ── Connection monitor ────────────────────────────────────────────────────────
 onValue(ref(db, '.info/connected'), snap => {
@@ -212,14 +245,7 @@ onValue(ref(db, '.info/connected'), snap => {
 });
 
 // ── Main scores subscription — fires on EVERY Firebase write ─────────────────
-onValue(ref(db, `tournaments/${TOURN_KEY}/scores`), snap => {
-  liveScores  = snap.val() || {};
-  lastUpdated = new Date();
-  document.getElementById('last-update').textContent =
-    'Updated ' + lastUpdated.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-  rebuildDropdown(); // selects best match and renders automatically
-  updateRefreshBadge();
-});
+subscribeScores();
 
 // ── 10-second countdown badge (cosmetic — real updates come from onValue) ────
 let _countdown = 10;

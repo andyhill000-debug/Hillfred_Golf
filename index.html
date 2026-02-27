@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png"/>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png"/>
 <title>Hillfred Golf Scorecard</title>
-<meta name="app-version" content="2026.02.27.11"/>
+<meta name="app-version" content="2026.02.27.12"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
   /* ── OUTDOOR OPTIMISED — Hillfred Golf ─────────────────────────────────────
@@ -2393,11 +2393,17 @@ function renderTournamentDropdown() {
     const current = sel.value;
     sel.innerHTML = '<option value="">— No tournament —</option>';
     Object.entries(TOURNAMENT).forEach(([key, t]) => {
+      // SGG Day 1 is complete — hide from dropdown, Day 2 only
+      if (key === 'sgg_2026_day1') return;
       const opt = document.createElement('option');
       opt.value = key; opt.textContent = t.label;
       sel.appendChild(opt);
     });
     if (current && TOURNAMENT[current]) sel.value = current;
+    // Auto-select Day 2 if nothing is selected and Day 1 was previously selected
+    if ((!current || current === 'sgg_2026_day1') && TOURNAMENT['sgg_2026_day2']) {
+      sel.value = 'sgg_2026_day2';
+    }
   }
   // Also refresh tournament tab list
   if (document.getElementById('tab-tournament')?.classList.contains('active')) {
@@ -2738,7 +2744,7 @@ function renderTournamentTab() {
   if (emptyEl) emptyEl.style.display = 'none';
 
   if (listEl) {
-    listEl.innerHTML = keys.map(key => {
+    listEl.innerHTML = keys.filter(key => key !== 'sgg_2026_day1').map(key => {
       const t = TOURNAMENT[key];
       const icon = t.type === 'teams' ? '👥' : '🏌️';
       const meta = t.type === 'teams'
@@ -3707,6 +3713,21 @@ function clearAutosave(){
 /** On app open: check for a saved in-progress game and resume or prompt */
 // ── Changelog ────────────────────────────────────────────────────────────────
 const CHANGELOG = [
+  {
+    version: '2026.02.27.12',
+    date: '27 Feb 2026',
+    entries: [
+      { type: 'update', text: 'Match Graph — Day 1 / Day 2 dropdown added, defaults to Day 2' },
+    ]
+  },
+  {
+    version: '2026.02.27.12',
+    date: '27 Feb 2026',
+    entries: [
+      { type: 'fix', text: 'Day 1 removed from game dropdown — Day 2 is the only selectable game' },
+      { type: 'fix', text: 'Day 2 auto-selected on load — no manual selection required' },
+    ]
+  },
   {
     version: '2026.02.27.11',
     date: '27 Feb 2026',
