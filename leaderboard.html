@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="app-version" content="2026.02.25.7"/>
+<meta name="app-version" content="2026.02.27.17"/>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <link rel="manifest" href="manifest.json"/>
@@ -439,6 +439,10 @@ select.t-select{width:100%;background:var(--card);border:1.5px solid var(--borde
 <div class="view-panel" id="panel-graphs">
   <div class="mg-wrap">
     <div class="mg-select-row">
+      <select class="mg-select" id="mg-day-select" onchange="onMgDayChange(this.value)" style="flex:0;width:auto;min-width:0;font-weight:800;color:var(--teal);border-color:var(--teal)">
+        <option value="sgg_2026_day1">Day 1</option>
+        <option value="sgg_2026_day2">Day 2</option>
+      </select>
       <select class="mg-select" id="mg-match-select" onchange="onMatchSelect(this.value)">
         <option value="">— Select a match —</option>
       </select>
@@ -1597,12 +1601,44 @@ window.switchTab = function(tab) {
   document.getElementById('panel-leaderboard').classList.toggle('active', tab === 'leaderboard');
   document.getElementById('panel-graphs').classList.toggle('active', tab === 'graphs');
   document.getElementById('filter-bar').style.display = tab === 'leaderboard' ? '' : 'none';
-  if (tab === 'graphs') { _rebuildMatchDropdown(); }
+  if (tab === 'graphs') {
+    // Initialise subscription if not already running — default to current tournament or Day 2
+    if (!_unsubMgScores) {
+      const initKey = SGG_KEYS.includes(currentKey) ? currentKey : 'sgg_2026_day2';
+      _mgDayKey = initKey;
+      const daySel = document.getElementById('mg-day-select');
+      if (daySel) daySel.value = _mgDayKey;
+      _subscribeMgScores(_mgDayKey);
+    } else {
+      _rebuildMatchDropdown();
+    }
+  }
 };
 
 // ── Match graph filter ─────────────────────────────────────────────────────
 let _mgFilter = 'all';
 let _selectedMatchKey = '';
+let _mgDayKey = 'sgg_2026_day2';   // default to Day 2
+let _mgScores = {};                 // separate scores for the graph panel
+let _unsubMgScores = null;
+
+// Subscribe graph panel to a tournament key independently of main leaderboard
+function _subscribeMgScores(key) {
+  if (_unsubMgScores) { _unsubMgScores(); _unsubMgScores = null; }
+  _mgScores = {};
+  _mgDayKey = key;
+  _unsubMgScores = onValue(ref(db, `tournaments/${key}/scores`), snap => {
+    _mgScores = snap.val() || {};
+    _rebuildMatchDropdown();
+  });
+}
+
+window.onMgDayChange = function(key) {
+  _subscribeMgScores(key);
+  _selectedMatchKey = '';
+  document.getElementById('mg-content').innerHTML =
+    '<div class="mg-empty"><div class="icon">📈</div><p>Select a match above to view its worm graph</p></div>';
+};
 
 window.setMgFilter = function(f) {
   _mgFilter = f;
@@ -1636,7 +1672,7 @@ function _rebuildMatchDropdown() {
 
 function _buildGameList() {
   const games = [];
-  Object.entries(liveScores).forEach(([gameId, gd]) => {
+  Object.entries(_mgScores).forEach(([gameId, gd]) => {
     if (!gd || !gd._meta) return;
     const meta = gd._meta;
     const players = Object.entries(gd).filter(([k]) => k !== '_meta');
