@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
   <meta http-equiv="Pragma" content="no-cache"/>
-  <meta http-equiv="Expires" content="2026.02.27.17"/>
+  <meta http-equiv="Expires" content="2026.02.27.18"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -2606,7 +2606,7 @@ function _sggTallyFirebase(scores) {
 }
 
 // Format points cleanly: 2 → "2", 2.5 → "2.5"
-function _sggPts(v) { return Number.isInteger(v) ? String(v) : v.toFixed(1); }
+function _sggPts(v) { return Number(v).toFixed(2); }
 
 // ── Day 1 final result override ─────────────────────────────────────────────
 // Day 1 (Bonnie Doon 4BBB) scores were not fully recorded due to a handicap
